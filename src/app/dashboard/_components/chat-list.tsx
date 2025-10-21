@@ -23,7 +23,10 @@ function ChatListItem({ chat }: { chat: Chat & { id: string } }) {
 
   const isPersonalChat = chat.participantIds.length === 1 && chat.participantIds[0] === currentUser?.uid;
 
-  const otherParticipantId = chat.participantIds.find(p => p !== currentUser?.uid);
+  // Find the other participant if it's a private chat with someone else
+  const otherParticipantId = !isPersonalChat && chat.type === 'privado' 
+    ? chat.participantIds.find(p => p !== currentUser?.uid)
+    : null;
 
   const otherUserQuery = useMemoFirebase(() => {
     if (!firestore || !otherParticipantId) return null;
@@ -36,7 +39,7 @@ function ChatListItem({ chat }: { chat: Chat & { id: string } }) {
   const getChatDetails = () => {
     if (isPersonalChat) {
       return {
-        name: 'My Notes',
+        name: chat.nombre || 'My Notes', // Use chat name or default
         avatarUser: null,
         isPersonal: true
       };
@@ -48,6 +51,7 @@ function ChatListItem({ chat }: { chat: Chat & { id: string } }) {
         isPersonal: false
       };
     }
+    // Group chat
     return {
       name: chat.nombre || 'Group Chat',
       avatarUser: null,
