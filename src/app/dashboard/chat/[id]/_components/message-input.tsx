@@ -19,18 +19,18 @@ export function MessageInput({ chatId }: { chatId: string }) {
     const now = new Date().toISOString();
     
     addDocumentNonBlocking(messagesColRef, {
-      remitenteId: user.uid,
-      contenido: message,
-      tipo: 'texto',
-      leidoPor: [],
-      enviadoEn: now,
-      editado: false,
+      senderId: user.uid,
+      content: message,
+      type: 'text',
+      readBy: [],
+      sentAt: now,
+      edited: false,
     });
     
     const chatDocRef = doc(firestore, 'chats', chatId);
     setDocumentNonBlocking(chatDocRef, {
-        ultimoMensaje: message,
-        ultimoMensajeEn: now,
+        lastMessage: message,
+        lastMessageAt: now,
     }, { merge: true });
 
     setMessage('');

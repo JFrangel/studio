@@ -52,11 +52,11 @@ export default function RegisterPage() {
       // Create a personal chat for the user
       const chatsColRef = collection(firestore, 'chats');
       addDocumentNonBlocking(chatsColRef, {
-        creadoEn: new Date().toISOString(),
-        creadoPor: user.uid,
+        createdAt: new Date().toISOString(),
+        createdBy: user.uid,
         participantIds: [user.uid],
-        tipo: 'privado',
-        nombre: 'My Notes'
+        type: 'private',
+        name: 'My Notes'
       });
       
       router.push('/dashboard');

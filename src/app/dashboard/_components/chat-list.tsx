@@ -24,7 +24,7 @@ function ChatListItem({ chat }: { chat: Chat & { id: string } }) {
   const isPersonalChat = chat.participantIds.length === 1 && chat.participantIds[0] === currentUser?.uid;
 
   // Find the other participant if it's a private chat with someone else
-  const otherParticipantId = !isPersonalChat && chat.type === 'privado' 
+  const otherParticipantId = !isPersonalChat && chat.type === 'private' 
     ? chat.participantIds.find(p => p !== currentUser?.uid)
     : null;
 
@@ -39,12 +39,12 @@ function ChatListItem({ chat }: { chat: Chat & { id: string } }) {
   const getChatDetails = () => {
     if (isPersonalChat) {
       return {
-        name: chat.nombre || 'My Notes', // Use chat name or default
+        name: chat.name || 'My Notes', // Use chat name or default
         avatarUser: null,
         isPersonal: true
       };
     }
-    if (chat.type === 'privado') {
+    if (chat.type === 'private') {
       return {
         name: otherUser?.nombre || 'Private Chat',
         avatarUser: otherUser,
@@ -53,7 +53,7 @@ function ChatListItem({ chat }: { chat: Chat & { id: string } }) {
     }
     // Group chat
     return {
-      name: chat.nombre || 'Group Chat',
+      name: chat.name || 'Group Chat',
       avatarUser: null,
       isPersonal: false
     };

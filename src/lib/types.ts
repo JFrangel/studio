@@ -10,20 +10,20 @@ export type User = {
 
 export type Chat = {
   id: string;
-  nombre?: string; // For group chats
-  tipo: 'privado' | 'grupal';
+  name?: string; // For group chats
+  type: 'private' | 'group';
   participantIds: string[];
-  creadoEn: string; // ISO string
-  ultimoMensaje?: string;
-  ultimoMensajeEn?: string; // ISO string
-  creadoPor: string;
+  createdAt: string; // ISO string
+  lastMessage?: string;
+  lastMessageAt?: string; // ISO string
+  createdBy: string;
 };
 
 export type Message = {
   id: string;
   senderId: string;
   content: string;
-  type: 'texto' | 'imagen';
+  type: 'text' | 'image';
   readBy: string[];
   sentAt: string; // ISO String
   edited: boolean;

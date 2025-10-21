@@ -10,7 +10,7 @@ export function ChatHeader({ chat }: { chat: Chat & {id: string} }) {
   const { user: currentUser } = useUser();
   const firestore = useFirestore();
 
-  const participantIds = chat.participantes.filter(p => p !== currentUser?.uid);
+  const participantIds = chat.participantIds.filter(p => p !== currentUser?.uid);
   
   const usersQuery = useMemoFirebase(() => {
     if (!firestore || participantIds.length === 0) return null;
@@ -20,27 +20,39 @@ export function ChatHeader({ chat }: { chat: Chat & {id: string} }) {
   const { data: participantUsers } = useCollection<User>(usersQuery);
 
   const getChatDetails = () => {
-    if (chat.tipo === 'privado') {
+    if (chat.type === 'private') {
+       if (participantIds.length === 0) { // This is the personal "My Notes" chat
+        return {
+          name: chat.name || 'My Notes',
+          description: 'Your personal space for notes',
+          userForAvatar: null,
+          isPersonal: true
+        }
+      }
       const otherUser = participantUsers?.[0];
       return {
         name: otherUser?.nombre || 'Private Chat',
         description: otherUser?.estado === 'activo' ? 'Online' : 'Offline',
-        userForAvatar: otherUser
+        userForAvatar: otherUser,
+        isPersonal: false,
       };
     }
     return {
-      name: chat.nombre || 'Group Chat',
-      description: `${chat.participantes.length} members`,
-      userForAvatar: null
+      name: chat.name || 'Group Chat',
+      description: `${chat.participantIds.length} members`,
+      userForAvatar: null,
+      isPersonal: false,
     };
   };
 
-  const { name, description, userForAvatar } = getChatDetails();
+  const { name, description, userForAvatar, isPersonal } = getChatDetails();
   
   return (
     <div className="flex h-16 items-center gap-4 border-b bg-card px-4 md:px-6">
       <div className="flex items-center gap-3">
-        {chat.tipo === 'privado' ? (
+         {isPersonal ? (
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted text-xl font-semibold">📝</div>
+        ) : chat.type === 'private' ? (
            userForAvatar && <UserAvatar user={userForAvatar} />
         ) : (
           <div className="relative flex -space-x-2">

@@ -63,7 +63,7 @@ export function AddChatDialog({
       const chatsRef = collection(firestore, 'chats');
       const existingChatQuery = query(
         chatsRef,
-        where('type', '==', 'privado'),
+        where('type', '==', 'private'),
         where('participantIds', 'array-contains', currentUser.uid)
       );
       const existingChatsSnapshot = await getDocs(existingChatQuery);
@@ -80,10 +80,10 @@ export function AddChatDialog({
 
       // 3. Create a new chat
       const newChatRef = await addDoc(collection(firestore, 'chats'), {
-        creadoEn: new Date().toISOString(),
-        creadoPor: currentUser.uid,
+        createdAt: new Date().toISOString(),
+        createdBy: currentUser.uid,
         participantIds: [currentUser.uid, otherUserId],
-        tipo: 'privado',
+        type: 'private',
       });
       
       toast({
