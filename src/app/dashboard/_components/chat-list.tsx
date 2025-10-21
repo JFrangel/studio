@@ -11,35 +11,49 @@ import {
 } from '@/components/ui/sidebar';
 import { UserAvatar } from '@/components/user-avatar';
 import { useCollection, useFirestore, useUser, useMemoFirebase } from '@/firebase';
-import { collection, query, where, addDoc } from 'firebase/firestore';
+import { collection, query, where, doc, getDoc } from 'firebase/firestore';
 import type { Chat, User } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { AddChatDialog } from './add-chat-dialog';
 
 function ChatListItem({ chat }: { chat: Chat & { id: string } }) {
   const { user: currentUser } = useUser();
   const firestore = useFirestore();
+  const [otherUser, setOtherUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const isPersonalChat = chat.participantIds.length === 1 && chat.participantIds[0] === currentUser?.uid;
+  const isPersonalChat = chat.type === 'private' && chat.participantIds.length === 1 && chat.participantIds[0] === currentUser?.uid;
 
-  // Find the other participant if it's a private chat with someone else
-  const otherParticipantId = !isPersonalChat && chat.type === 'private' 
-    ? chat.participantIds.find(p => p !== currentUser?.uid)
-    : null;
+  useEffect(() => {
+    const fetchOtherUser = async () => {
+      if (!firestore || !currentUser || chat.type !== 'private' || isPersonalChat) {
+        setIsLoading(false);
+        return;
+      }
 
-  const otherUserQuery = useMemoFirebase(() => {
-    if (!firestore || !otherParticipantId) return null;
-    return query(collection(firestore, 'users'), where('id', '==', otherParticipantId));
-  }, [firestore, otherParticipantId]);
+      const otherParticipantId = chat.participantIds.find(p => p !== currentUser.uid);
+      if (otherParticipantId) {
+        try {
+          const userDocRef = doc(firestore, 'users', otherParticipantId);
+          const userDocSnap = await getDoc(userDocRef);
+          if (userDocSnap.exists()) {
+            setOtherUser(userDocSnap.data() as User);
+          }
+        } catch (error) {
+          console.error("Error fetching other user:", error);
+        }
+      }
+      setIsLoading(false);
+    };
 
-  const { data: otherUsers } = useCollection<User>(otherUserQuery);
-  const otherUser = otherUsers?.[0];
+    fetchOtherUser();
+  }, [firestore, currentUser, chat, isPersonalChat]);
 
   const getChatDetails = () => {
     if (isPersonalChat) {
       return {
-        name: chat.name || 'My Notes', // Use chat name or default
+        name: chat.name || 'My Notes',
         avatarUser: null,
         isPersonal: true
       };
@@ -58,6 +72,10 @@ function ChatListItem({ chat }: { chat: Chat & { id: string } }) {
       isPersonal: false
     };
   };
+
+  if (isLoading) {
+     return <Skeleton className="h-10 w-full" />
+  }
 
   const { name, avatarUser, isPersonal } = getChatDetails();
 

@@ -4,7 +4,7 @@ import type { Chat, User } from '@/lib/types';
 import { Phone, Video, MoreVertical } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useUser, useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection, query, where } from 'firebase/firestore';
+import { collection, query, where, documentId } from 'firebase/firestore';
 
 export function ChatHeader({ chat }: { chat: Chat & {id: string} }) {
   const { user: currentUser } = useUser();
@@ -14,8 +14,9 @@ export function ChatHeader({ chat }: { chat: Chat & {id: string} }) {
   
   const usersQuery = useMemoFirebase(() => {
     if (!firestore || participantIds.length === 0) return null;
-    return query(collection(firestore, 'users'), where('id', 'in', participantIds));
-  }, [firestore, participantIds.join(',')]); // Use join to create a stable dependency
+    // Use documentId() which is equivalent to FieldPath.documentId()
+    return query(collection(firestore, 'users'), where(documentId(), 'in', participantIds));
+  }, [firestore, participantIds.join(',')]);
 
   const { data: participantUsers, isLoading: areParticipantsLoading } = useCollection<User>(usersQuery);
 

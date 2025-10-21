@@ -4,8 +4,8 @@ import { UserAvatar } from '@/components/user-avatar';
 import { cn } from '@/lib/utils';
 import type { Message, User } from '@/lib/types';
 import { format } from 'date-fns';
-import { useUser, useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection, query, where } from 'firebase/firestore';
+import { useUser, useDoc, useFirestore, useMemoFirebase } from '@/firebase';
+import { doc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 
 function MessageItem({ message }: { message: Message & { id: string } }) {
@@ -13,13 +13,12 @@ function MessageItem({ message }: { message: Message & { id: string } }) {
   const firestore = useFirestore();
   const isSelf = message.senderId === currentUser?.uid;
 
-  const senderQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return query(collection(firestore, 'users'), where('id', '==', message.senderId));
+  const senderRef = useMemoFirebase(() => {
+    if (!firestore || !message.senderId) return null;
+    return doc(firestore, 'users', message.senderId);
   }, [firestore, message.senderId]);
 
-  const { data: senders } = useCollection<User>(senderQuery);
-  const sender = senders?.[0];
+  const { data: sender } = useDoc<User>(senderRef);
   
   if (!sender) {
     return (

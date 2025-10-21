@@ -52,8 +52,9 @@ export function AddChatDialog({
         throw new Error('User with that PIN not found.');
       }
 
-      const otherUser = querySnapshot.docs[0].data() as User;
-      const otherUserId = otherUser.id;
+      const otherUserDoc = querySnapshot.docs[0];
+      const otherUser = otherUserDoc.data() as User;
+      const otherUserId = otherUserDoc.id;
       
       if(otherUserId === currentUser.uid) {
         throw new Error("You can't start a chat with yourself.");
@@ -139,5 +140,3 @@ export function AddChatDialog({
     </Dialog>
   );
 }
-
-    
