@@ -128,7 +128,7 @@ export default function SettingsPage() {
                 </div>
                 <div className="grid flex-1 gap-2">
                   <Label htmlFor="name">Full Name</Label>
-                  <Input id="name" value={name} onChange={(e) => setName(e.target.value)} />
+                  <Input id="name" value={name} onChange={(e) => setName(e.target.value)} disabled={isLoading} />
                 </div>
               </div>
                <div className="grid gap-2">
@@ -144,7 +144,7 @@ export default function SettingsPage() {
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="status">Status</Label>
-                <Select value={status} onValueChange={setStatus}>
+                <Select value={status} onValueChange={setStatus} disabled={isLoading}>
                   <SelectTrigger id="status" className="w-[200px]">
                     <SelectValue placeholder="Select status" />
                   </SelectTrigger>
@@ -158,7 +158,7 @@ export default function SettingsPage() {
               </div>
             </CardContent>
             <CardFooter className="border-t px-6 py-4">
-              <Button onClick={handleProfileSave}>Save Changes</Button>
+              <Button onClick={handleProfileSave} disabled={isLoading}>Save Changes</Button>
             </CardFooter>
           </Card>
 
