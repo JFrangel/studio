@@ -190,8 +190,8 @@ export function ChatHeader({ chat, onSearchClick }: { chat: Chat & {id: string},
         onOpenChange={setManageGroupOpen}
         chat={chat}
       />
-      <div className="flex h-16 items-center gap-4 border-b bg-gradient-to-r from-primary/10 via-primary/5 to-background backdrop-blur-sm px-4 md:px-6 chat-header">
-        <div className="flex items-center gap-3">
+      <div className="flex h-16 items-center gap-2 sm:gap-4 border-b bg-gradient-to-r from-primary/10 via-primary/5 to-background backdrop-blur-sm px-3 sm:px-4 md:px-6 chat-header">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
           {isGroup ? (
             chat.groupAvatarStyle === 'avatar' && chat.groupAvatarSeed ? (
               <button 
@@ -244,11 +244,11 @@ export function ChatHeader({ chat, onSearchClick }: { chat: Chat & {id: string},
               ))}
             </div>
           )}
-        <button onClick={handleAvatarClick} className="flex flex-col hover:opacity-80 transition-opacity cursor-pointer text-left min-w-0 chat-button">
-          <div className="flex items-center gap-2">
-            <h2 className="text-base font-semibold font-headline truncate group-header">
+        <button onClick={handleAvatarClick} className="flex flex-col hover:opacity-80 transition-opacity cursor-pointer text-left min-w-0 flex-1 chat-button">
+          <div className="flex items-center gap-1 sm:gap-2 min-w-0 w-full">
+            <h2 className="text-sm sm:text-base font-semibold font-headline truncate group-header">
               {name}
-              {isPersonal && <span className="text-muted-foreground ml-2">(yo)</span>}
+              {isPersonal && <span className="text-muted-foreground ml-1 sm:ml-2">(yo)</span>}
             </h2>
             {/* Insignia de grupo si estamos dentro de un grupo */}
             {isGroup && <GroupBadge />}
@@ -261,22 +261,24 @@ export function ChatHeader({ chat, onSearchClick }: { chat: Chat & {id: string},
               <RoleBadge type="platform-admin" size="sm" />
             )}
           </div>
-          <p className="text-sm text-muted-foreground truncate">
+          <p className="text-xs sm:text-sm text-muted-foreground truncate w-full">
             {isGroup && memberCount && (
               <span className="inline-flex items-center gap-1">
                 <Users className="h-3 w-3" />
-                {memberCount} miembros • 
+                <span className="hidden sm:inline">{memberCount} miembros</span>
+                <span className="sm:hidden">{memberCount}</span>
+                <span className="hidden sm:inline"> • </span>
               </span>
             )}
-            {description}
+            <span className="truncate">{description}</span>
           </p>
         </button>
       </div>
-      <div className="ml-auto flex items-center gap-2">
+      <div className="flex items-center gap-1 sm:gap-2 shrink-0">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button className="inline-flex items-center justify-center rounded-md h-10 w-10 hover:bg-accent hover:text-accent-foreground">
-              <MoreVertical className="h-5 w-5" />
+            <button className="inline-flex items-center justify-center rounded-md h-9 w-9 sm:h-10 sm:w-10 hover:bg-accent hover:text-accent-foreground shrink-0">
+              <MoreVertical className="h-4 w-4 sm:h-5 sm:w-5" />
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">

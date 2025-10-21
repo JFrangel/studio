@@ -6,14 +6,24 @@ import { doc, setDoc } from 'firebase/firestore';
 export function useMarkMessagesAsRead(chatId: string) {
   const { user } = useUser();
   const firestore = useFirestore();
-  const hasMarkedRef = useRef<boolean>(false);
+  const lastUpdateRef = useRef<number>(0);
+  const isUpdatingRef = useRef<boolean>(false);
 
   useEffect(() => {
     if (!user || !firestore || !chatId) return;
 
     const updateReadTimestamp = async () => {
+      // Evitar actualizaciones concurrentes
+      if (isUpdatingRef.current) return;
+      
+      const now = Date.now();
+      // Solo actualizar si han pasado al menos 2 segundos desde la última actualización
+      if (now - lastUpdateRef.current < 2000) return;
+      
+      isUpdatingRef.current = true;
+      lastUpdateRef.current = now;
+      
       try {
-        const now = Date.now();
         const userDocRef = doc(firestore, 'users', user.uid);
 
         // Usar setDoc con merge para asegurar que se actualice
@@ -22,18 +32,15 @@ export function useMarkMessagesAsRead(chatId: string) {
             [chatId]: now
           }
         }, { merge: true });
-
-        console.log(`✅ Mensajes marcados como leídos para chat ${chatId} en timestamp ${now}`);
       } catch (error) {
         console.error('Error marking messages as read:', error);
+      } finally {
+        isUpdatingRef.current = false;
       }
     };
 
-    // Actualizar inmediatamente al abrir el chat (solo una vez)
-    if (!hasMarkedRef.current) {
-      hasMarkedRef.current = true;
-      updateReadTimestamp();
-    }
+    // Actualizar inmediatamente al abrir el chat
+    updateReadTimestamp();
 
     // Actualizar cuando el usuario vuelve a la pestaña
     const handleVisibilityChange = () => {
@@ -47,21 +54,29 @@ export function useMarkMessagesAsRead(chatId: string) {
       updateReadTimestamp();
     };
 
-    // Actualizar cuando hay scroll (el usuario está viendo los mensajes)
-    const handleScroll = () => {
-      updateReadTimestamp();
-    };
-
     document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('focus', handleFocus);
-    window.addEventListener('scroll', handleScroll, { passive: true });
 
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('focus', handleFocus);
-      window.removeEventListener('scroll', handleScroll);
-      // Actualizar una última vez al salir del chat
-      updateReadTimestamp();
+      // Actualizar una última vez al salir del chat (respetando el throttle)
+      const cleanup = async () => {
+        const now = Date.now();
+        if (now - lastUpdateRef.current >= 2000) {
+          try {
+            const userDocRef = doc(firestore, 'users', user.uid);
+            await setDoc(userDocRef, {
+              chatLastReadAt: {
+                [chatId]: now
+              }
+            }, { merge: true });
+          } catch (error) {
+            // Silenciar errores en cleanup
+          }
+        }
+      };
+      cleanup();
     };
   }, [chatId, user, firestore]);
 }
