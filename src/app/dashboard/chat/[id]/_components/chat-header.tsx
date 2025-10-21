@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { UserAvatar } from '@/components/user-avatar';
 import type { Chat, User } from '@/lib/types';
-import { Phone, Video, MoreVertical, Info, Users, Pin, Archive, Trash2, Bell, BellOff } from 'lucide-react';
+import { Phone, Video, MoreVertical, Info, Users, Pin, Archive, Trash2, Bell, BellOff, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useUser, useCollection, useFirestore, useMemoFirebase, setDocumentNonBlocking, useDoc } from '@/firebase';
 import { collection, query, where, documentId, doc, arrayUnion, arrayRemove, getDoc, getDocs } from 'firebase/firestore';
@@ -29,7 +29,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarUrl, type GroupAvatarStyle } from '@/lib/avatars';
 import { RoleBadge, GroupBadge } from '@/components/role-badges';
 
-export function ChatHeader({ chat }: { chat: Chat & {id: string} }) {
+export function ChatHeader({ chat, onSearchClick }: { chat: Chat & {id: string}, onSearchClick?: () => void }) {
   const { user: currentUser } = useUser();
   const firestore = useFirestore();
   const router = useRouter();
@@ -298,6 +298,10 @@ export function ChatHeader({ chat }: { chat: Chat & {id: string} }) {
                 <DropdownMenuSeparator />
               </>
             )}
+            <DropdownMenuItem onClick={() => onSearchClick?.()}>
+              <Search className="mr-2 h-4 w-4" />
+              Search Messages
+            </DropdownMenuItem>
             {isGroup && (
               <>
                 <DropdownMenuSeparator />

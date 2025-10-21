@@ -1,6 +1,6 @@
 'use client';
 
-import { use } from 'react';
+import { use, useState, useMemo } from 'react';
 import { useDoc, useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import { ChatHeader } from './_components/chat-header';
 import { ChatMessages } from './_components/chat-messages';
@@ -9,13 +9,17 @@ import { doc, collection, query, orderBy } from 'firebase/firestore';
 import type { Chat, Message } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, X } from 'lucide-react';
 import { useMarkMessagesAsRead } from '@/hooks/use-mark-messages-read';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 
 export default function ChatPage({ params }: { params: Promise<{ id: string }> }) {
   const firestore = useFirestore();
   const { user } = useUser();
   const { id: chatId } = use(params);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
 
   // Marcar mensajes como leídos cuando se abre el chat
   useMarkMessagesAsRead(chatId);
@@ -35,6 +39,25 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
     [firestore, chatId]
   );
   const { data: messages, isLoading: messagesLoading } = useCollection<Message>(messagesQuery);
+
+  // Filtrar mensajes según la búsqueda
+  const filteredMessages = useMemo(() => {
+    if (!messages || !searchQuery.trim()) return messages || [];
+    
+    const query = searchQuery.toLowerCase().trim();
+    return messages.filter(msg => 
+      msg.content?.toLowerCase().includes(query)
+    );
+  }, [messages, searchQuery]);
+
+  const handleSearchClick = () => {
+    setIsSearching(true);
+  };
+
+  const handleCloseSearch = () => {
+    setIsSearching(false);
+    setSearchQuery('');
+  };
 
   // Show loading state
   if (chatLoading || !user) {
@@ -98,9 +121,42 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
 
   return (
     <div className="flex h-full flex-col">
-      <ChatHeader chat={chat} />
+      <ChatHeader chat={chat} onSearchClick={handleSearchClick} />
+      
+      {/* Barra de búsqueda */}
+      {isSearching && (
+        <div className="flex items-center gap-2 border-b bg-card px-4 py-3">
+          <Input
+            type="text"
+            placeholder="Buscar mensajes..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="flex-1"
+            autoFocus
+          />
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleCloseSearch}
+            className="shrink-0"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
+
+      {/* Contador de resultados */}
+      {isSearching && searchQuery.trim() && (
+        <div className="border-b bg-muted px-4 py-2 text-sm text-muted-foreground">
+          {filteredMessages.length === 0 
+            ? 'No se encontraron mensajes' 
+            : `${filteredMessages.length} mensaje${filteredMessages.length !== 1 ? 's' : ''} encontrado${filteredMessages.length !== 1 ? 's' : ''}`
+          }
+        </div>
+      )}
+
       <ChatMessages 
-        messages={messages || []} 
+        messages={filteredMessages} 
         isLoading={messagesLoading} 
         chatId={chatId}
         chat={{ ...chat, id: chatId }}
