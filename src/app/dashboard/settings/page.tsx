@@ -11,8 +11,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { UserAvatar } from '@/components/user-avatar';
-import { useUser, useFirestore, setDocumentNonBlocking, useDoc, useMemoFirebase } from '@/firebase';
-import { Camera, Copy } from 'lucide-react';
+import { useUser, useFirestore, setDocumentNonBlocking, useDoc, useMemoFirebase, useAuth } from '@/firebase';
+import { Camera, Copy, LogOut } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -25,10 +25,14 @@ import { doc } from 'firebase/firestore';
 import type { User } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useRouter } from 'next/navigation';
+import { signOut } from 'firebase/auth';
 
 export default function SettingsPage() {
   const { user: authUser, isUserLoading } = useUser();
   const firestore = useFirestore();
+  const auth = useAuth();
+  const router = useRouter();
   const { toast } = useToast();
 
   const userDocRef = useMemoFirebase(() => {
@@ -63,6 +67,12 @@ export default function SettingsPage() {
       toast({ title: "PIN Copied!", description: "You can now share your PIN with others." });
     }
   }
+
+  const handleLogout = async () => {
+    if (!auth) return;
+    await signOut(auth);
+    router.push('/login');
+  };
 
   const isLoading = isUserLoading || isProfileLoading;
 
@@ -181,6 +191,21 @@ export default function SettingsPage() {
             </CardContent>
             <CardFooter className="border-t px-6 py-4">
               <Button>Update Password</Button>
+            </CardFooter>
+          </Card>
+
+           <Card>
+            <CardHeader>
+              <CardTitle className="font-headline">Session</CardTitle>
+              <CardDescription>
+                Log out of your account on this device.
+              </CardDescription>
+            </CardHeader>
+            <CardFooter className="border-t px-6 py-4">
+              <Button variant="outline" onClick={handleLogout}>
+                <LogOut className="mr-2 h-4 w-4" />
+                Cerrar Sesión
+              </Button>
             </CardFooter>
           </Card>
 
