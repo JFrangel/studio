@@ -30,7 +30,7 @@ export default function DashboardLayout({
           </SidebarFooter>
         </Sidebar>
         <div className="flex flex-col h-screen">
-          {/* MainHeader is removed from here to be placed in individual pages */}
+          <MainHeader title="Dashboard" />
           <main className="flex-1 overflow-auto">{children}</main>
         </div>
       </div>
