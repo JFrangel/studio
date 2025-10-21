@@ -11,44 +11,45 @@ import {
 import { Button } from '@/components/ui/button';
 import { Settings, LogOut, Users, User as UserIcon } from 'lucide-react';
 import { UserAvatar } from '@/components/user-avatar';
-import { useUser, useAuth } from '@/firebase';
+import { useUser, useAuth, useDoc, useMemoFirebase, useFirestore } from '@/firebase';
 import { signOut } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
+import { doc } from 'firebase/firestore';
+import type { User } from '@/lib/types';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export function UserMenu() {
-  const { user } = useUser();
+  const { user: authUser, isUserLoading } = useUser();
   const auth = useAuth();
+  const firestore = useFirestore();
   const router = useRouter();
 
+  const userDocRef = useMemoFirebase(() => {
+    if (!firestore || !authUser) return null;
+    return doc(firestore, 'users', authUser.uid);
+  }, [firestore, authUser]);
+
+  const { data: userProfile, isLoading: isProfileLoading } = useDoc<User>(userDocRef);
+
   const handleLogout = async () => {
-    if(!auth) return;
+    if (!auth) return;
     await signOut(auth);
     router.push('/login');
   };
+  
+  const isLoading = isUserLoading || isProfileLoading;
 
-  if (!user) {
+  if (isLoading || !userProfile) {
     return (
       <div className="flex items-center gap-2 p-4">
-        <div className="h-10 w-10 rounded-full bg-muted" />
-        <div className="flex flex-col">
-          <div className="h-4 w-24 rounded-md bg-muted" />
-          <div className="h-3 w-32 rounded-md bg-muted mt-1" />
+        <Skeleton className="h-10 w-10 rounded-full" />
+        <div className="flex flex-col gap-y-2">
+          <Skeleton className="h-4 w-24" />
+          <Skeleton className="h-3 w-32" />
         </div>
       </div>
     );
   }
-  
-  const userProfile = {
-      id: user.uid,
-      name: user.displayName || user.email || 'User',
-      email: user.email || '',
-      pin: '', // Will be fetched from firestore
-      role: 'user',
-      photo: user.photoURL || `https://picsum.photos/seed/${user.uid}/200/200`,
-      lastLogin: user.metadata.lastSignInTime || new Date().toISOString(),
-      status: 'active',
-  };
-
 
   return (
     <DropdownMenu>
@@ -103,5 +104,3 @@ export function UserMenu() {
     </DropdownMenu>
   );
 }
-
-    

@@ -1,12 +1,11 @@
 'use client';
-import { MainHeader } from '../_components/main-header';
 import {
   Card,
   CardContent,
   CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle,
-  CardFooter,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -69,35 +68,42 @@ export default function SettingsPage() {
 
   if (isLoading || !userProfile || !authUser) {
     return (
-      <div className="flex h-screen flex-col">
-        <MainHeader title="Profile" />
         <main className="flex-1 overflow-y-auto p-4 md:p-6">
           <div className="mx-auto grid max-w-3xl gap-6">
             <Card>
               <CardHeader>
-                <CardTitle className="font-headline">Profile</CardTitle>
+                <CardTitle className="font-headline">Public Profile</CardTitle>
                 <CardDescription>
                   This is your public display name, avatar, and PIN.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                 <div className="h-20 w-full bg-muted rounded-md animate-pulse"></div>
-                 <div className="h-10 w-full bg-muted rounded-md animate-pulse"></div>
-                 <div className="h-10 w-full bg-muted rounded-md animate-pulse"></div>
+                 <div className="flex items-center gap-4">
+                    <Skeleton className="h-20 w-20 rounded-full" />
+                    <div className="grid flex-1 gap-2">
+                        <Skeleton className="h-5 w-20" />
+                        <Skeleton className="h-10 w-full" />
+                    </div>
+                 </div>
+                 <div className="space-y-2">
+                    <Skeleton className="h-5 w-24" />
+                    <Skeleton className="h-10 w-full" />
+                 </div>
+                  <div className="space-y-2">
+                    <Skeleton className="h-5 w-24" />
+                    <Skeleton className="h-10 w-48" />
+                 </div>
               </CardContent>
                <CardFooter className="border-t px-6 py-4">
-                <Button disabled>Save</Button>
+                <Button disabled>Save Changes</Button>
               </CardFooter>
             </Card>
           </div>
         </main>
-      </div>
     )
   }
 
   return (
-    <div className="flex h-screen flex-col">
-      <MainHeader title="Profile" />
       <main className="flex-1 overflow-y-auto p-4 md:p-6">
         <div className="mx-auto grid max-w-3xl gap-6">
           <Card>
@@ -183,7 +189,7 @@ export default function SettingsPage() {
               <CardTitle className="font-headline">Delete Account</CardTitle>
               <CardDescription>
                 Permanently delete your account and all of your content. This action is not reversible.
-              </C           </CardDescription>
+              </CardDescription>
             </CardHeader>
             <CardFooter className="border-t bg-destructive/10 px-6 py-4">
               <Button variant="destructive">Delete My Account</Button>
@@ -192,8 +198,5 @@ export default function SettingsPage() {
 
         </div>
       </main>
-    </div>
   );
 }
-
-    

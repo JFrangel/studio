@@ -4,7 +4,6 @@ import {
   SidebarHeader,
   SidebarContent,
   SidebarFooter,
-  SidebarInset,
 } from '@/components/ui/sidebar';
 import { Logo } from '@/components/logo';
 import { ChatList } from './_components/chat-list';
@@ -30,8 +29,8 @@ export default function DashboardLayout({
             <UserMenu />
           </SidebarFooter>
         </Sidebar>
-        <div className="flex flex-col">
-          <MainHeader title="Dashboard" />
+        <div className="flex flex-col h-screen">
+          {/* MainHeader is removed from here to be placed in individual pages */}
           <main className="flex-1 overflow-auto">{children}</main>
         </div>
       </div>

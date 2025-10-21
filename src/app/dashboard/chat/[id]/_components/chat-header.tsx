@@ -17,7 +17,7 @@ export function ChatHeader({ chat }: { chat: Chat & {id: string} }) {
     return query(collection(firestore, 'users'), where('id', 'in', participantIds));
   }, [firestore, participantIds.join(',')]); // Use join to create a stable dependency
 
-  const { data: participantUsers } = useCollection<User>(usersQuery);
+  const { data: participantUsers, isLoading: areParticipantsLoading } = useCollection<User>(usersQuery);
 
   const getChatDetails = () => {
     if (chat.type === 'private') {
@@ -31,8 +31,8 @@ export function ChatHeader({ chat }: { chat: Chat & {id: string} }) {
       }
       const otherUser = participantUsers?.[0];
       return {
-        name: otherUser?.name || 'Private Chat',
-        description: otherUser?.status === 'active' ? 'Online' : 'Offline',
+        name: areParticipantsLoading ? 'Loading...' : otherUser?.name || 'Private Chat',
+        description: areParticipantsLoading ? '...' : otherUser?.status === 'active' ? 'Online' : 'Offline',
         userForAvatar: otherUser,
         isPersonal: false,
       };
