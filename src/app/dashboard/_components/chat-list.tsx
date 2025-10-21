@@ -10,17 +10,20 @@ import {
   SidebarGroupAction,
 } from '@/components/ui/sidebar';
 import { UserAvatar } from '@/components/user-avatar';
-import { Badge } from '@/components/ui/badge';
 import { useCollection, useFirestore, useUser, useMemoFirebase } from '@/firebase';
-import { collection, query, where } from 'firebase/firestore';
+import { collection, query, where, addDoc } from 'firebase/firestore';
 import type { Chat, User } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useState } from 'react';
+import { AddChatDialog } from './add-chat-dialog';
 
 function ChatListItem({ chat }: { chat: Chat & { id: string } }) {
   const { user: currentUser } = useUser();
   const firestore = useFirestore();
 
-  const otherParticipantId = chat.participantes.find(p => p !== currentUser?.uid);
+  const isPersonalChat = chat.participantIds.length === 1 && chat.participantIds[0] === currentUser?.uid;
+
+  const otherParticipantId = chat.participantIds.find(p => p !== currentUser?.uid);
 
   const otherUserQuery = useMemoFirebase(() => {
     if (!firestore || !otherParticipantId) return null;
@@ -31,34 +34,43 @@ function ChatListItem({ chat }: { chat: Chat & { id: string } }) {
   const otherUser = otherUsers?.[0];
 
   const getChatDetails = () => {
-    if (chat.tipo === 'privado') {
+    if (isPersonalChat) {
+      return {
+        name: 'My Notes',
+        avatarUser: null,
+        isPersonal: true
+      };
+    }
+    if (chat.type === 'privado') {
       return {
         name: otherUser?.nombre || 'Private Chat',
         avatarUser: otherUser,
+        isPersonal: false
       };
     }
     return {
       name: chat.nombre || 'Group Chat',
       avatarUser: null,
+      isPersonal: false
     };
   };
 
-  const { name, avatarUser } = getChatDetails();
+  const { name, avatarUser, isPersonal } = getChatDetails();
 
   return (
     <SidebarMenuItem>
       <SidebarMenuButton asChild>
         <Link href={`/dashboard/chat/${chat.id}`}>
-          {avatarUser ? (
+          {isPersonal ? (
+             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-sm font-semibold">📝</div>
+          ) : avatarUser ? (
             <UserAvatar user={avatarUser} className="h-8 w-8" />
           ) : (
             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-sm font-semibold">
-              {chat.participantes.length}
+              {chat.participantIds.length}
             </div>
           )}
           <span className="flex-1 truncate">{name}</span>
-          {/* Unread count logic to be implemented */}
-          {/* <Badge variant="secondary" className="h-5">3</Badge> */}
         </Link>
       </SidebarMenuButton>
     </SidebarMenuItem>
@@ -69,19 +81,22 @@ function ChatListItem({ chat }: { chat: Chat & { id: string } }) {
 export function ChatList() {
   const { user } = useUser();
   const firestore = useFirestore();
+  const [isAddChatOpen, setAddChatOpen] = useState(false);
 
   const chatsQuery = useMemoFirebase(() => {
     if (!firestore || !user) return null;
-    return query(collection(firestore, 'chats'), where('participantes', 'array-contains', user.uid));
+    return query(collection(firestore, 'chats'), where('participantIds', 'array-contains', user.uid));
   }, [firestore, user]);
 
   const { data: chats, isLoading } = useCollection<Chat>(chatsQuery);
 
   return (
+    <>
+    <AddChatDialog open={isAddChatOpen} onOpenChange={setAddChatOpen} />
     <div className="flex flex-col gap-2">
       <SidebarGroup>
         <SidebarGroupLabel>Chats</SidebarGroupLabel>
-        <SidebarGroupAction>
+        <SidebarGroupAction onClick={() => setAddChatOpen(true)}>
           <PlusCircle className="size-4" />
         </SidebarGroupAction>
         <SidebarMenu>
@@ -98,5 +113,6 @@ export function ChatList() {
         </SidebarMenu>
       </SidebarGroup>
     </div>
+    </>
   );
 }

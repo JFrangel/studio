@@ -13,10 +13,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Logo } from '@/components/logo';
 import { useState, useEffect } from 'react';
-import { useAuth, useFirestore, setDocumentNonBlocking, useUser } from '@/firebase';
+import { useAuth, useFirestore, setDocumentNonBlocking, addDocumentNonBlocking, useUser } from '@/firebase';
 import { initiateEmailSignUp } from '@/firebase/non-blocking-login';
 import { useRouter } from 'next/navigation';
-import { doc } from 'firebase/firestore';
+import { doc, collection } from 'firebase/firestore';
 
 export default function RegisterPage() {
   const [name, setName] = useState('');
@@ -28,6 +28,7 @@ export default function RegisterPage() {
   const router = useRouter();
 
   const handleRegister = async () => {
+    if(!auth) return;
     // Initiate sign up, but don't wait for it to complete.
     // The onAuthStateChanged listener will handle the result.
     initiateEmailSignUp(auth, email, password);
@@ -47,6 +48,16 @@ export default function RegisterPage() {
         ultimoLogin: new Date().toISOString(),
         estado: 'activo',
       }, {}); // Use empty options for creation
+
+      // Create a personal chat for the user
+      const chatsColRef = collection(firestore, 'chats');
+      addDocumentNonBlocking(chatsColRef, {
+        creadoEn: new Date().toISOString(),
+        creadoPor: user.uid,
+        participantIds: [user.uid],
+        tipo: 'privado',
+        nombre: 'My Notes'
+      });
       
       router.push('/dashboard');
     }

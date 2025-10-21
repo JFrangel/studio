@@ -9,7 +9,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
-import { Settings, LogOut } from 'lucide-react';
+import { Settings, LogOut, Users } from 'lucide-react';
 import { UserAvatar } from '@/components/user-avatar';
 import { useUser, useAuth } from '@/firebase';
 import { signOut } from 'firebase/auth';
@@ -21,6 +21,7 @@ export function UserMenu() {
   const router = useRouter();
 
   const handleLogout = async () => {
+    if(!auth) return;
     await signOut(auth);
     router.push('/login');
   };
@@ -74,6 +75,12 @@ export function UserMenu() {
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
+        <DropdownMenuItem asChild>
+          <Link href="/dashboard/users">
+            <Users className="mr-2 h-4 w-4" />
+            <span>Users</span>
+          </Link>
+        </DropdownMenuItem>
         <DropdownMenuItem asChild>
           <Link href="/dashboard/settings">
             <Settings className="mr-2 h-4 w-4" />
