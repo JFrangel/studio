@@ -16,6 +16,7 @@ import { Label } from '@/components/ui/label';
 import { Users, Key } from 'lucide-react';
 import type { Chat } from '@/lib/types';
 import { useRouter } from 'next/navigation';
+import { useToast } from '@/hooks/use-toast';
 
 interface JoinGroupDialogProps {
   open: boolean;
@@ -26,6 +27,7 @@ export function JoinGroupDialog({ open, onOpenChange }: JoinGroupDialogProps) {
   const { user: currentUser } = useUser();
   const firestore = useFirestore();
   const router = useRouter();
+  const { toast } = useToast();
   
   const [groupPin, setGroupPin] = useState('');
   const [isSearching, setIsSearching] = useState(false);
@@ -58,12 +60,14 @@ export function JoinGroupDialog({ open, onOpenChange }: JoinGroupDialogProps) {
       const groupDoc = querySnapshot.docs[0];
       const group = { id: groupDoc.id, ...groupDoc.data() } as Chat & { id: string };
 
-      // Verificar si el grupo es privado y el usuario no está invitado
-      if (!group.isPublic && !group.participantIds.includes(currentUser.uid)) {
-        setError('This is a private group. You need an invitation to join.');
-        setIsSearching(false);
-        return;
-      }
+      // Debug: Ver la configuración del grupo
+      console.log('Grupo encontrado:', {
+        id: group.id,
+        name: group.name,
+        visibility: group.visibility,
+        isPublic: group.isPublic,
+        participantIds: group.participantIds
+      });
 
       // Verificar si el usuario ya es miembro
       if (group.participantIds.includes(currentUser.uid)) {
@@ -73,6 +77,20 @@ export function JoinGroupDialog({ open, onOpenChange }: JoinGroupDialogProps) {
         setGroupPin('');
         setIsSearching(false);
         return;
+      }
+
+      // Verificar si el grupo es privado
+      if (group.visibility === 'private') {
+        // Verificar si ya hay una solicitud pendiente
+        const existingRequest = group.joinRequests?.find(
+          (req) => req.userId === currentUser.uid && req.status === 'pending'
+        );
+        
+        if (existingRequest) {
+          setError('You already have a pending request to join this group. Please wait for approval.');
+          setIsSearching(false);
+          return;
+        }
       }
 
       setFoundGroup(group);
@@ -92,19 +110,56 @@ export function JoinGroupDialog({ open, onOpenChange }: JoinGroupDialogProps) {
 
     try {
       const chatRef = doc(firestore, 'chats', foundGroup.id);
-      await setDocumentNonBlocking(
-        chatRef,
-        {
-          participantIds: arrayUnion(currentUser.uid),
-        },
-        { merge: true }
-      );
+      
+      // Determinar si el grupo es privado (usar visibility o isPublic como fallback)
+      const isPrivate = foundGroup.visibility 
+        ? foundGroup.visibility === 'private' 
+        : foundGroup.isPublic === false;
+      
+      // Si el grupo es privado, crear una solicitud de unión
+      if (isPrivate) {
+        const newRequest = {
+          userId: currentUser.uid,
+          userName: currentUser.displayName || currentUser.email || 'Unknown User',
+          userEmail: currentUser.email || '',
+          requestedAt: new Date().toISOString(),
+          status: 'pending' as const,
+        };
 
-      // Navegar al chat del grupo
-      router.push(`/dashboard/chat/${foundGroup.id}`);
-      onOpenChange(false);
-      setGroupPin('');
-      setFoundGroup(null);
+        await setDocumentNonBlocking(
+          chatRef,
+          {
+            joinRequests: arrayUnion(newRequest),
+          },
+          { merge: true }
+        );
+
+        setError('');
+        
+        toast({
+          title: "Join request sent!",
+          description: "Your request has been sent to the group admins. You'll be notified once it's approved.",
+        });
+        
+        onOpenChange(false);
+        setGroupPin('');
+        setFoundGroup(null);
+      } else {
+        // Si el grupo es público, unirse directamente
+        await setDocumentNonBlocking(
+          chatRef,
+          {
+            participantIds: arrayUnion(currentUser.uid),
+          },
+          { merge: true }
+        );
+
+        // Navegar al chat del grupo
+        router.push(`/dashboard/chat/${foundGroup.id}`);
+        onOpenChange(false);
+        setGroupPin('');
+        setFoundGroup(null);
+      }
     } catch (error) {
       console.error('Error joining group:', error);
       setError('Error joining group');
@@ -197,11 +252,15 @@ export function JoinGroupDialog({ open, onOpenChange }: JoinGroupDialogProps) {
                         <Users className="h-3 w-3" />
                         {foundGroup.participantIds.length} members
                       </span>
-                      {foundGroup.isPublic && (
+                      {foundGroup.visibility === 'public' ? (
                         <span className="px-2 py-0.5 bg-green-500/10 text-green-700 dark:text-green-400 rounded-full">
                           Public
                         </span>
-                      )}
+                      ) : foundGroup.visibility === 'private' ? (
+                        <span className="px-2 py-0.5 bg-orange-500/10 text-orange-700 dark:text-orange-400 rounded-full">
+                          Private - Requires Approval
+                        </span>
+                      ) : null}
                     </div>
                   </div>
                 </div>
@@ -218,7 +277,9 @@ export function JoinGroupDialog({ open, onOpenChange }: JoinGroupDialogProps) {
                     disabled={isSearching}
                     className="flex-1 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-50"
                   >
-                    {isSearching ? 'Joining...' : 'Join Group'}
+                    {isSearching 
+                      ? (foundGroup.visibility === 'private' ? 'Sending Request...' : 'Joining...') 
+                      : (foundGroup.visibility === 'private' ? 'Request to Join' : 'Join Group')}
                   </button>
                 </div>
               </div>

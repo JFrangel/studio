@@ -232,7 +232,9 @@ export function CreateGroupDialog({ open, onOpenChange }: CreateGroupDialogProps
         adminIds: [currentUser.uid], // El creador es el primer admin
         groupPin: groupPin, // PIN único del grupo
         inviteCode: generateInviteCode(), // Código de invitación único
-        isPublic: isPublic, // Público o privado
+        visibility: isPublic ? 'public' : 'private', // Nueva propiedad de visibilidad
+        joinRequests: [], // Lista de solicitudes de unión
+        isPublic: isPublic, // Mantener por retrocompatibilidad (deprecated)
       };
 
       // Configurar avatar del grupo

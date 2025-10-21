@@ -27,7 +27,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { UserAvatar } from '@/components/user-avatar';
-import { Shield, ShieldOff, UserMinus, AlertTriangle, Edit, Users, Plus, Clock, Info, Copy, Check, Link2, Hash, Sparkles, Eye, MessageSquare } from 'lucide-react';
+import { Shield, ShieldOff, UserMinus, AlertTriangle, Edit, Users, Plus, Clock, Info, Copy, Check, Link2, Hash, Sparkles, Eye, MessageSquare, Lock, Unlock, UserCheck, UserX, CheckCircle, XCircle, LogOut } from 'lucide-react';
 import type { User, Chat, Message } from '@/lib/types';
 import { useRouter } from 'next/navigation';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -55,6 +55,7 @@ export function ManageGroupDialog({ open, onOpenChange, chat }: ManageGroupDialo
   const [isLoading, setIsLoading] = useState(false);
   const [userToRemove, setUserToRemove] = useState<User | null>(null);
   const [showDeleteGroupDialog, setShowDeleteGroupDialog] = useState(false);
+  const [showLeaveGroupDialog, setShowLeaveGroupDialog] = useState(false);
   
   // Edit group states
   const [groupName, setGroupName] = useState('');
@@ -74,6 +75,14 @@ export function ManageGroupDialog({ open, onOpenChange, chat }: ManageGroupDialo
   // Copy states
   const [copiedPin, setCopiedPin] = useState(false);
   const [copiedInvite, setCopiedInvite] = useState(false);
+  
+  // Visibility states
+  const [groupVisibility, setGroupVisibility] = useState<'public' | 'private'>('public');
+  const [isUpdatingVisibility, setIsUpdatingVisibility] = useState(false);
+  
+  // Join requests
+  const [joinRequests, setJoinRequests] = useState<any[]>([]);
+  const [processingRequest, setProcessingRequest] = useState<string | null>(null);
 
   const isCurrentUserAdmin = currentUser && chat.adminIds?.includes(currentUser.uid);
 
@@ -87,6 +96,8 @@ export function ManageGroupDialog({ open, onOpenChange, chat }: ManageGroupDialo
       setSelectedImage(chat.groupImage || DEFAULT_GROUP_IMAGES[0]);
       setUseAnimatedAvatar(chat.groupAvatarStyle === 'avatar');
       setSelectedAvatarSeed(chat.groupAvatarSeed || null);
+      setGroupVisibility(chat.visibility || 'public');
+      setJoinRequests(chat.joinRequests || []);
       setError('');
     }
   }, [open, firestore, chat.participantIds]);
@@ -422,6 +433,85 @@ export function ManageGroupDialog({ open, onOpenChange, chat }: ManageGroupDialo
     }
   };
 
+  const handleUpdateVisibility = async (newVisibility: 'public' | 'private') => {
+    if (!firestore || !isCurrentUserAdmin) return;
+
+    setIsUpdatingVisibility(true);
+    try {
+      const chatRef = doc(firestore, 'chats', chat.id);
+      await setDocumentNonBlocking(
+        chatRef,
+        { visibility: newVisibility },
+        { merge: true }
+      );
+      setGroupVisibility(newVisibility);
+    } catch (error) {
+      console.error('Error updating visibility:', error);
+      alert('Error al actualizar la visibilidad');
+    } finally {
+      setIsUpdatingVisibility(false);
+    }
+  };
+
+  const handleApproveRequest = async (userId: string) => {
+    if (!firestore || !isCurrentUserAdmin) return;
+
+    setProcessingRequest(userId);
+    try {
+      const chatRef = doc(firestore, 'chats', chat.id);
+      const request = joinRequests.find(r => r.userId === userId);
+      
+      if (!request) return;
+
+      // Agregar al participante
+      await setDocumentNonBlocking(
+        chatRef,
+        {
+          participantIds: arrayUnion(userId),
+          joinRequests: joinRequests.filter(r => r.userId !== userId)
+        },
+        { merge: true }
+      );
+
+      // Actualizar estado local
+      setJoinRequests(joinRequests.filter(r => r.userId !== userId));
+      
+      // Recargar participantes
+      loadParticipants();
+    } catch (error) {
+      console.error('Error approving request:', error);
+      alert('Error al aprobar la solicitud');
+    } finally {
+      setProcessingRequest(null);
+    }
+  };
+
+  const handleRejectRequest = async (userId: string) => {
+    if (!firestore || !isCurrentUserAdmin) return;
+
+    setProcessingRequest(userId);
+    try {
+      const chatRef = doc(firestore, 'chats', chat.id);
+      
+      // Remover la solicitud
+      await setDocumentNonBlocking(
+        chatRef,
+        {
+          joinRequests: joinRequests.filter(r => r.userId !== userId)
+        },
+        { merge: true }
+      );
+
+      // Actualizar estado local
+      setJoinRequests(joinRequests.filter(r => r.userId !== userId));
+    } catch (error) {
+      console.error('Error rejecting request:', error);
+      alert('Error al rechazar la solicitud');
+    } finally {
+      setProcessingRequest(null);
+    }
+  };
+
   const handleDeleteGroup = async () => {
     if (!firestore || !isCurrentUserAdmin) return;
 
@@ -442,6 +532,37 @@ export function ManageGroupDialog({ open, onOpenChange, chat }: ManageGroupDialo
     } catch (error) {
       console.error('Error deleting group:', error);
       alert('Error deleting group');
+    }
+  };
+
+  const handleLeaveGroup = async () => {
+    if (!firestore || !currentUser) return;
+
+    try {
+      const chatRef = doc(firestore, 'chats', chat.id);
+      
+      // Si es el creador, no puede salirse
+      if (currentUser.uid === chat.createdBy) {
+        alert('The group creator cannot leave the group. You must delete the group or transfer ownership first.');
+        return;
+      }
+
+      // Remover del grupo
+      await setDocumentNonBlocking(
+        chatRef,
+        {
+          participantIds: arrayRemove(currentUser.uid),
+          adminIds: arrayRemove(currentUser.uid), // También remover de admins si lo era
+        },
+        { merge: true }
+      );
+
+      // Redirigir al dashboard
+      router.push('/dashboard');
+      onOpenChange(false);
+    } catch (error) {
+      console.error('Error leaving group:', error);
+      alert('Error leaving group');
     }
   };
 
@@ -474,7 +595,7 @@ export function ManageGroupDialog({ open, onOpenChange, chat }: ManageGroupDialo
           </DialogHeader>
 
           <Tabs defaultValue="info" className="w-full">
-            <TabsList className={`grid w-full ${isCurrentUserAdmin ? 'grid-cols-4' : 'grid-cols-3'}`}>
+            <TabsList className={`grid w-full ${isCurrentUserAdmin ? 'grid-cols-5' : 'grid-cols-3'}`}>
               <TabsTrigger value="info" className="text-xs sm:text-sm px-2">
                 <Info className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-2" />
                 <span className="hidden sm:inline">Info</span>
@@ -491,10 +612,21 @@ export function ManageGroupDialog({ open, onOpenChange, chat }: ManageGroupDialo
                 <span className="sm:hidden">({participants.length})</span>
               </TabsTrigger>
               {isCurrentUserAdmin && (
-                <TabsTrigger value="add" className="text-xs sm:text-sm px-2">
-                  <Plus className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-2" />
-                  <span className="hidden sm:inline">Add</span>
-                </TabsTrigger>
+                <>
+                  <TabsTrigger value="privacy" className="text-xs sm:text-sm px-2 relative">
+                    {groupVisibility === 'private' ? <Lock className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-2" /> : <Unlock className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-2" />}
+                    <span className="hidden sm:inline">Privacy</span>
+                    {joinRequests.length > 0 && (
+                      <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] rounded-full h-4 w-4 flex items-center justify-center">
+                        {joinRequests.length}
+                      </span>
+                    )}
+                  </TabsTrigger>
+                  <TabsTrigger value="add" className="text-xs sm:text-sm px-2">
+                    <Plus className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-2" />
+                    <span className="hidden sm:inline">Add</span>
+                  </TabsTrigger>
+                </>
               )}
             </TabsList>
 
@@ -530,11 +662,21 @@ export function ManageGroupDialog({ open, onOpenChange, chat }: ManageGroupDialo
                     <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground flex-wrap">
                       <Users className="h-3 w-3" />
                       <span>{participants.length} members</span>
-                      {chat.isPublic !== undefined && (
+                      {chat.visibility && (
                         <>
                           <span>•</span>
                           <Badge className="text-xs">
-                            {chat.isPublic ? 'Public' : 'Private'}
+                            {chat.visibility === 'public' ? (
+                              <span className="flex items-center gap-1">
+                                <Unlock className="h-3 w-3" />
+                                Public
+                              </span>
+                            ) : (
+                              <span className="flex items-center gap-1">
+                                <Lock className="h-3 w-3" />
+                                Private
+                              </span>
+                            )}
                           </Badge>
                         </>
                       )}
@@ -709,25 +851,58 @@ export function ManageGroupDialog({ open, onOpenChange, chat }: ManageGroupDialo
                     {isSaving ? 'Saving...' : 'Save Changes'}
                   </Button>
 
-                  {/* Delete Group Button */}
-                  <div className="pt-4 border-t">
-                    <Button
-                      type="button"
-                      onClick={() => setShowDeleteGroupDialog(true)}
-                      className="w-full bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                    >
-                      <AlertTriangle className="h-4 w-4 mr-2" />
-                      Delete Group for Everyone
-                    </Button>
-                    <p className="text-xs text-muted-foreground text-center mt-2">
-                      This action cannot be undone. The group will be deleted for all participants.
-                    </p>
-                  </div>
+                  {/* Delete Group Button - Solo para administradores */}
+                  {isCurrentUserAdmin && (
+                    <div className="pt-4 border-t">
+                      <Button
+                        type="button"
+                        onClick={() => setShowDeleteGroupDialog(true)}
+                        className="w-full bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      >
+                        <AlertTriangle className="h-4 w-4 mr-2" />
+                        Delete Group for Everyone
+                      </Button>
+                      <p className="text-xs text-muted-foreground text-center mt-2">
+                        This action cannot be undone. The group will be deleted for all participants.
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Leave Group Button - Para todos los participantes excepto el creador */}
+                  {currentUser?.uid !== chat.createdBy && (
+                    <div className={isCurrentUserAdmin ? "pt-4" : "pt-4 border-t"}>
+                      <Button
+                        type="button"
+                        onClick={() => setShowLeaveGroupDialog(true)}
+                        className="w-full bg-orange-500 text-white hover:bg-orange-600"
+                      >
+                        <LogOut className="h-4 w-4 mr-2" />
+                        Leave Group
+                      </Button>
+                      <p className="text-xs text-muted-foreground text-center mt-2">
+                        You will no longer be able to see messages or participate in this group.
+                      </p>
+                    </div>
+                  )}
                 </>
               ) : (
                 <div className="text-center py-8 text-muted-foreground">
                   <Edit className="h-8 w-8 mx-auto mb-2 opacity-50" />
                   <p>Only administrators can edit group details</p>
+                  
+                  {/* Leave Group Button para usuarios no administradores */}
+                  {currentUser?.uid !== chat.createdBy && (
+                    <div className="mt-6">
+                      <Button
+                        type="button"
+                        onClick={() => setShowLeaveGroupDialog(true)}
+                        className="bg-orange-500 text-white hover:bg-orange-600"
+                      >
+                        <LogOut className="h-4 w-4 mr-2" />
+                        Leave Group
+                      </Button>
+                    </div>
+                  )}
                 </div>
               )}
             </TabsContent>
@@ -830,6 +1005,130 @@ export function ManageGroupDialog({ open, onOpenChange, chat }: ManageGroupDialo
                     );
                   })}
                 </div>
+              )}
+            </TabsContent>
+
+            {/* Privacy Tab */}
+            <TabsContent value="privacy" className="space-y-4 mt-4">
+              {isCurrentUserAdmin && (
+                <>
+                  {/* Visibility Settings */}
+                  <div className="space-y-3">
+                    <h3 className="text-sm font-semibold">Group Visibility</h3>
+                    <p className="text-xs text-muted-foreground">
+                      Control who can join this group
+                    </p>
+                    
+                    <div className="grid gap-3">
+                      {/* Public Option */}
+                      <button
+                        onClick={() => handleUpdateVisibility('public')}
+                        disabled={isUpdatingVisibility || groupVisibility === 'public'}
+                        className={`flex items-start gap-3 p-4 rounded-lg border-2 transition-all ${
+                          groupVisibility === 'public'
+                            ? 'border-primary bg-primary/5'
+                            : 'border-border hover:border-primary/50'
+                        } ${isUpdatingVisibility ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                      >
+                        <Unlock className={`h-5 w-5 mt-0.5 ${groupVisibility === 'public' ? 'text-primary' : 'text-muted-foreground'}`} />
+                        <div className="flex-1 text-left">
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium">Public</p>
+                            {groupVisibility === 'public' && (
+                              <CheckCircle className="h-4 w-4 text-primary" />
+                            )}
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Anyone with the PIN or invite link can join immediately
+                          </p>
+                        </div>
+                      </button>
+
+                      {/* Private Option */}
+                      <button
+                        onClick={() => handleUpdateVisibility('private')}
+                        disabled={isUpdatingVisibility || groupVisibility === 'private'}
+                        className={`flex items-start gap-3 p-4 rounded-lg border-2 transition-all ${
+                          groupVisibility === 'private'
+                            ? 'border-primary bg-primary/5'
+                            : 'border-border hover:border-primary/50'
+                        } ${isUpdatingVisibility ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                      >
+                        <Lock className={`h-5 w-5 mt-0.5 ${groupVisibility === 'private' ? 'text-primary' : 'text-muted-foreground'}`} />
+                        <div className="flex-1 text-left">
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium">Private</p>
+                            {groupVisibility === 'private' && (
+                              <CheckCircle className="h-4 w-4 text-primary" />
+                            )}
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Requires approval from admins before joining
+                          </p>
+                        </div>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Join Requests Section */}
+                  {groupVisibility === 'private' && (
+                    <div className="space-y-3 pt-4 border-t">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-sm font-semibold">Join Requests</h3>
+                        {joinRequests.length > 0 && (
+                          <Badge className="bg-red-500 text-white">
+                            {joinRequests.length} pending
+                          </Badge>
+                        )}
+                      </div>
+                      
+                      {joinRequests.length === 0 ? (
+                        <div className="text-center py-8 text-sm text-muted-foreground">
+                          <UserCheck className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                          <p>No pending join requests</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-2 max-h-64 overflow-y-auto">
+                          {joinRequests.map((request) => (
+                            <div
+                              key={request.userId}
+                              className="flex items-center gap-3 p-3 rounded-lg border bg-card"
+                            >
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium truncate">{request.userName}</p>
+                                <p className="text-xs text-muted-foreground truncate">
+                                  {request.userEmail}
+                                </p>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  Requested {new Date(request.requestedAt).toLocaleDateString()}
+                                </p>
+                              </div>
+                              
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={() => handleApproveRequest(request.userId)}
+                                  disabled={processingRequest === request.userId}
+                                  className="p-2 hover:bg-green-500/10 rounded-md text-green-600 disabled:opacity-50"
+                                  title="Approve"
+                                >
+                                  <CheckCircle className="h-5 w-5" />
+                                </button>
+                                <button
+                                  onClick={() => handleRejectRequest(request.userId)}
+                                  disabled={processingRequest === request.userId}
+                                  className="p-2 hover:bg-red-500/10 rounded-md text-red-600 disabled:opacity-50"
+                                  title="Reject"
+                                >
+                                  <XCircle className="h-5 w-5" />
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </>
               )}
             </TabsContent>
 
@@ -978,6 +1277,28 @@ export function ManageGroupDialog({ open, onOpenChange, chat }: ManageGroupDialo
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Delete Group
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Leave Group Confirmation */}
+      <AlertDialog open={showLeaveGroupDialog} onOpenChange={setShowLeaveGroupDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Leave this group?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You will no longer be able to see messages or participate in <strong>{chat.name}</strong>.
+              You can rejoin later if the group is public or if an admin invites you.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleLeaveGroup}
+              className="bg-orange-500 text-white hover:bg-orange-600"
+            >
+              Leave Group
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

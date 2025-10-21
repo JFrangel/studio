@@ -14,6 +14,14 @@ export type User = {
   chatLastReadAt?: Record<string, number>; // Timestamps de última lectura por chat (chatId -> timestamp)
 };
 
+export type JoinRequest = {
+  userId: string;
+  userName: string;
+  userEmail: string;
+  requestedAt: string; // ISO string
+  status: 'pending' | 'approved' | 'rejected';
+};
+
 export type Chat = {
   id: string;
   name?: string; // For group chats
@@ -30,8 +38,11 @@ export type Chat = {
   groupAvatarStyle?: 'emoji' | 'avatar'; // 'emoji' para emoji, 'avatar' para avatar animado
   groupAvatarSeed?: string; // Seed para avatar animado de grupo (formato: "style-seed")
   groupPin?: string; // PIN único del grupo para unirse
-  isPublic?: boolean; // true = público (se puede buscar), false/undefined = privado (solo por invitación)
+  visibility?: 'public' | 'private'; // 'public' = cualquiera puede unirse, 'private' = requiere aprobación
   inviteCode?: string; // Código de invitación único para enlaces
+  joinRequests?: JoinRequest[]; // Solicitudes pendientes de unión para grupos privados
+  /** @deprecated Use visibility instead. Kept for backward compatibility */
+  isPublic?: boolean; // DEPRECATED: usar visibility
   deletedBy?: string[]; // Array de user IDs que eliminaron el chat
   archivedBy?: string[]; // Array de user IDs que archivaron el chat
   mutedBy?: string[]; // Array de user IDs que silenciaron el chat

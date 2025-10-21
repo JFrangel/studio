@@ -11,6 +11,7 @@ import { ChatList } from './_components/chat-list';
 import { UserMenu } from './_components/user-menu';
 import { MainHeader } from './_components/main-header';
 import { usePathname } from 'next/navigation';
+import { usePushNotifications } from '@/hooks/use-push-notifications';
 
 function getTitleForPath(path: string): string {
   if (path.startsWith('/dashboard/chat')) {
@@ -32,6 +33,9 @@ export default function DashboardLayout({
 }) {
   const pathname = usePathname();
   const title = getTitleForPath(pathname);
+  
+  // Inicializar notificaciones push
+  usePushNotifications();
 
   return (
     <SidebarProvider defaultOpen={true}>

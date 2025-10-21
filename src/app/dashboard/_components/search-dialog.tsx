@@ -11,11 +11,13 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { Search, MessageSquare, User as UserIcon } from 'lucide-react';
+import { Search, MessageSquare, User as UserIcon, Users } from 'lucide-react';
 import { UserAvatar } from '@/components/user-avatar';
 import type { Chat, User, Message } from '@/lib/types';
 import { useRouter } from 'next/navigation';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useSidebar } from '@/components/ui/sidebar';
+import { Badge } from '@/components/ui/badge';
 
 interface SearchDialogProps {
   open: boolean;
@@ -26,6 +28,7 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
   const { user: currentUser } = useUser();
   const firestore = useFirestore();
   const router = useRouter();
+  const { setOpenMobile, isMobile } = useSidebar();
   
   const [searchTerm, setSearchTerm] = useState('');
   const [isSearching, setIsSearching] = useState(false);
@@ -94,6 +97,10 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
   }, [searchTerm, firestore, currentUser]);
 
   const handleChatClick = (chatId: string) => {
+    // Cerrar el sidebar en móvil
+    if (isMobile) {
+      setOpenMobile(false);
+    }
     router.push(`/dashboard/chat/${chatId}`);
     onOpenChange(false);
     setSearchTerm('');
@@ -124,6 +131,10 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
       });
 
       if (existingChat) {
+        // Cerrar el sidebar en móvil
+        if (isMobile) {
+          setOpenMobile(false);
+        }
         // Si existe, navegar al chat existente
         router.push(`/dashboard/chat/${existingChat.id}`);
       } else {
@@ -141,6 +152,10 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
         const chatRef = await addDocumentNonBlocking(chatsRef, newChat);
         
         if (chatRef && chatRef.id) {
+          // Cerrar el sidebar en móvil
+          if (isMobile) {
+            setOpenMobile(false);
+          }
           // Navegar al nuevo chat
           router.push(`/dashboard/chat/${chatRef.id}`);
         }
@@ -210,7 +225,20 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
                       {chat.groupImage || (chat.type === 'group' ? '👥' : '💬')}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium truncate">{chat.name || 'Chat'}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium truncate">{chat.name || 'Chat'}</p>
+                        {chat.type === 'group' ? (
+                          <Badge className="text-xs flex items-center gap-1 bg-blue-500/10 text-blue-700 dark:text-blue-400">
+                            <Users className="h-3 w-3" />
+                            Group
+                          </Badge>
+                        ) : (
+                          <Badge className="text-xs flex items-center gap-1 bg-purple-500/10 text-purple-700 dark:text-purple-400">
+                            <MessageSquare className="h-3 w-3" />
+                            Chat
+                          </Badge>
+                        )}
+                      </div>
                       {chat.description && (
                         <p className="text-sm text-muted-foreground truncate">{chat.description}</p>
                       )}

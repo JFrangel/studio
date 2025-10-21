@@ -11,6 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertCircle, X } from 'lucide-react';
 import { useMarkMessagesAsRead } from '@/hooks/use-mark-messages-read';
+import { useCheckParticipant } from '@/hooks/use-check-participant';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 
@@ -30,6 +31,9 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
   }, [firestore, chatId]);
 
   const { data: chat, isLoading: chatLoading, error: chatError } = useDoc<Chat>(chatRef);
+
+  // Verificar si el usuario sigue siendo participante (solo para grupos)
+  useCheckParticipant(chatId, chat?.name);
 
   const messagesQuery = useMemoFirebase(
     () => {
@@ -83,16 +87,35 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
 
   // Show error state
   if (chatError) {
+    // Si el error es de permisos, probablemente fue removido del grupo
+    if (chatError.message.includes('permission') || chatError.message.includes('insufficient')) {
+      return (
+        <div className="flex h-full items-center justify-center p-4">
+          <Alert variant="destructive" className="max-w-md">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Has sido eliminado del grupo</AlertTitle>
+            <AlertDescription>
+              Ya no tienes acceso a este grupo. Has sido removido por un administrador o el grupo ha sido eliminado.
+              <br />
+              <span className="text-xs text-muted-foreground mt-2 block">
+                Serás redirigido al dashboard automáticamente.
+              </span>
+            </AlertDescription>
+          </Alert>
+        </div>
+      );
+    }
+
     return (
       <div className="flex h-full items-center justify-center p-4">
         <Alert variant="destructive" className="max-w-md">
           <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Error loading chat</AlertTitle>
+          <AlertTitle>Error al cargar el chat</AlertTitle>
           <AlertDescription>
             {chatError.message}
             <br />
             <span className="text-xs text-muted-foreground mt-2 block">
-              Make sure you have deployed the Firestore rules to Firebase Console.
+              Asegúrate de haber desplegado las reglas de Firestore en Firebase Console.
             </span>
           </AlertDescription>
         </Alert>

@@ -4,7 +4,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Paperclip, Mic, Send, Smile, Image as ImageIcon, FileText, X, Loader2 } from 'lucide-react';
 import { useState, useRef } from 'react';
 import { useUser, useFirestore, addDocumentNonBlocking, setDocumentNonBlocking, useUploadFile } from '@/firebase';
-import { collection, serverTimestamp, doc } from 'firebase/firestore';
+import { collection, serverTimestamp, doc, getDoc } from 'firebase/firestore';
+import { sendMessageNotification } from '@/lib/notifications';
 import {
   Popover,
   PopoverContent,
@@ -44,7 +45,7 @@ export function MessageInput({ chatId }: { chatId: string }) {
   const firestore = useFirestore();
   const { uploadFile, uploadState, resetUploadState } = useUploadFile();
 
-  const handleSendMessage = (e: React.FormEvent) => {
+  const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!message.trim() || !user || !firestore) return;
 
@@ -66,6 +67,24 @@ export function MessageInput({ chatId }: { chatId: string }) {
         lastMessageAt: now,
         lastMessageSender: user.uid,
     }, { merge: true });
+
+    // Enviar notificación push
+    try {
+      const chatSnap = await getDoc(chatDocRef);
+      if (chatSnap.exists()) {
+        const chatData = chatSnap.data();
+        await sendMessageNotification(firestore, {
+          chatId,
+          senderId: user.uid,
+          senderName: user.displayName || user.email || 'Usuario',
+          message: message,
+          chatName: chatData.name,
+          isGroup: chatData.type === 'group',
+        });
+      }
+    } catch (error) {
+      console.error('Error al enviar notificación:', error);
+    }
 
     setMessage('');
   };
