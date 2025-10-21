@@ -1,3 +1,4 @@
+'use client';
 import Link from 'next/link';
 import {
   DropdownMenu,
@@ -10,12 +11,42 @@ import {
 import { Button } from '@/components/ui/button';
 import { Settings, LogOut } from 'lucide-react';
 import { UserAvatar } from '@/components/user-avatar';
-import { currentUser, users } from '@/lib/data';
+import { useUser, useAuth } from '@/firebase';
+import { signOut } from 'firebase/auth';
+import { useRouter } from 'next/navigation';
 
 export function UserMenu() {
-  const user = users.find(u => u.id === currentUser.id);
+  const { user } = useUser();
+  const auth = useAuth();
+  const router = useRouter();
 
-  if (!user) return null;
+  const handleLogout = async () => {
+    await signOut(auth);
+    router.push('/login');
+  };
+
+  if (!user) {
+    return (
+      <div className="flex items-center gap-2 p-4">
+        <div className="h-10 w-10 rounded-full bg-muted" />
+        <div className="flex flex-col">
+          <div className="h-4 w-24 rounded-md bg-muted" />
+          <div className="h-3 w-32 rounded-md bg-muted mt-1" />
+        </div>
+      </div>
+    );
+  }
+  
+  const userProfile = {
+      id: user.uid,
+      nombre: user.displayName || user.email || 'User',
+      email: user.email || '',
+      rol: 'usuario',
+      foto: user.photoURL || `https://picsum.photos/seed/${user.uid}/200/200`,
+      ultimoLogin: user.metadata.lastSignInTime || new Date().toISOString(),
+      estado: 'activo',
+  };
+
 
   return (
     <DropdownMenu>
@@ -25,10 +56,10 @@ export function UserMenu() {
           className="h-auto w-full justify-start text-left"
         >
           <div className="flex items-center gap-2">
-            <UserAvatar user={user} className="h-8 w-8" />
+            <UserAvatar user={userProfile} className="h-8 w-8" />
             <div className="flex flex-col">
-              <span className="text-sm font-medium">{user.nombre}</span>
-              <span className="text-xs text-muted-foreground">{user.email}</span>
+              <span className="text-sm font-medium">{userProfile.nombre}</span>
+              <span className="text-xs text-muted-foreground">{userProfile.email}</span>
             </div>
           </div>
         </Button>
@@ -36,9 +67,9 @@ export function UserMenu() {
       <DropdownMenuContent className="w-56" align="end" forceMount>
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1">
-            <p className="text-sm font-medium leading-none">{user.nombre}</p>
+            <p className="text-sm font-medium leading-none">{userProfile.nombre}</p>
             <p className="text-xs leading-none text-muted-foreground">
-              {user.email}
+              {userProfile.email}
             </p>
           </div>
         </DropdownMenuLabel>
@@ -50,11 +81,9 @@ export function UserMenu() {
           </Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem asChild>
-          <Link href="/login">
+        <DropdownMenuItem onClick={handleLogout}>
             <LogOut className="mr-2 h-4 w-4" />
             <span>Log out</span>
-          </Link>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

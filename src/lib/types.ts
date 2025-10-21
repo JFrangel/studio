@@ -1,3 +1,5 @@
+import { Timestamp } from "firebase/firestore";
+
 export type User = {
   id: string;
   nombre: string;
@@ -25,6 +27,6 @@ export type Message = {
   contenido: string;
   tipo: 'texto' | 'imagen';
   leidoPor: string[];
-  enviadoEn: string;
+  enviadoEn: string; // ISO String, will be converted from Timestamp
   editado: boolean;
 };

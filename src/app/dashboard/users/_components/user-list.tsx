@@ -1,3 +1,4 @@
+'use client';
 import {
   Table,
   TableBody,
@@ -16,8 +17,12 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
-import { MoreHorizontal } from 'lucide-react';
+import { MoreHorizontal, ShieldAlert } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { collection } from 'firebase/firestore';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Card } from '@/components/ui/card';
 
 const roleVariantMap: { [key in User['rol']]: 'default' | 'secondary' | 'outline' } = {
   admin: 'default',
@@ -32,7 +37,66 @@ const statusClasses: { [key in User['estado']]: string } = {
   inactivo: 'bg-gray-400',
 };
 
-export function UserList({ users }: { users: User[] }) {
+export function UserList() {
+  const firestore = useFirestore();
+
+  const usersQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return collection(firestore, 'users');
+  }, [firestore]);
+  
+  const { data: users, isLoading, error } = useCollection<User>(usersQuery);
+
+  if (isLoading) {
+    return (
+      <Card>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>User</TableHead>
+              <TableHead className="hidden sm:table-cell">Status</TableHead>
+              <TableHead className="hidden md:table-cell">Role</TableHead>
+              <TableHead className="hidden lg:table-cell">Last Login</TableHead>
+              <TableHead>
+                <span className="sr-only">Actions</span>
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {[...Array(5)].map((_, i) => (
+              <TableRow key={i}>
+                <TableCell>
+                  <div className="flex items-center gap-3">
+                    <Skeleton className="h-10 w-10 rounded-full" />
+                    <div className="font-medium">
+                      <Skeleton className="h-4 w-24" />
+                      <Skeleton className="h-3 w-32 mt-1 md:hidden" />
+                    </div>
+                  </div>
+                </TableCell>
+                <TableCell className="hidden sm:table-cell"><Skeleton className="h-4 w-16" /></TableCell>
+                <TableCell className="hidden md:table-cell"><Skeleton className="h-6 w-20 rounded-full" /></TableCell>
+                <TableCell className="hidden lg:table-cell"><Skeleton className="h-4 w-28" /></TableCell>
+                <TableCell><Skeleton className="h-8 w-8" /></TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </Card>
+    )
+  }
+
+  if (error) {
+    return (
+      <Card className="p-4 flex flex-col items-center justify-center gap-4 text-center">
+        <ShieldAlert className="w-16 h-16 text-destructive" />
+        <h3 className="text-xl font-semibold">Error fetching users</h3>
+        <p className="text-muted-foreground text-sm">{error.message}</p>
+        <p className="text-xs text-muted-foreground">Please check your Firestore security rules.</p>
+      </Card>
+    );
+  }
+
   return (
     <Card>
       <Table>
@@ -48,7 +112,7 @@ export function UserList({ users }: { users: User[] }) {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {users.map((user) => (
+          {users?.map((user) => (
             <TableRow key={user.id}>
               <TableCell>
                 <div className="flex items-center gap-3">
@@ -94,5 +158,3 @@ export function UserList({ users }: { users: User[] }) {
     </Card>
   );
 }
-// Add Card import for the component
-import { Card } from '@/components/ui/card';

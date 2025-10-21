@@ -1,6 +1,5 @@
 import { MainHeader } from '../_components/main-header';
 import { UserList } from './_components/user-list';
-import { users } from '@/lib/data';
 import { Button } from '@/components/ui/button';
 import { PlusCircle } from 'lucide-react';
 
@@ -16,7 +15,7 @@ export default function UsersPage() {
                 Add User
             </Button>
         </div>
-        <UserList users={users} />
+        <UserList />
       </main>
     </div>
   );

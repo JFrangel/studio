@@ -1,36 +1,50 @@
+'use client';
 import { UserAvatar } from '@/components/user-avatar';
-import { users } from '@/lib/data';
-import type { Chat } from '@/lib/types';
+import type { Chat, User } from '@/lib/types';
 import { Phone, Video, MoreVertical } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useUser, useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { collection, query, where } from 'firebase/firestore';
 
-export function ChatHeader({ chat }: { chat: Chat }) {
+export function ChatHeader({ chat }: { chat: Chat & {id: string} }) {
+  const { user: currentUser } = useUser();
+  const firestore = useFirestore();
+
+  const participantIds = chat.participantes.filter(p => p !== currentUser?.uid);
+  
+  const usersQuery = useMemoFirebase(() => {
+    if (!firestore || participantIds.length === 0) return null;
+    return query(collection(firestore, 'users'), where('id', 'in', participantIds));
+  }, [firestore, participantIds]);
+
+  const { data: participantUsers } = useCollection<User>(usersQuery);
+
   const getChatDetails = () => {
     if (chat.tipo === 'privado') {
-      const otherUserId = chat.participantes.find(p => p !== 'u1');
-      const otherUser = users.find(u => u.id === otherUserId);
+      const otherUser = participantUsers?.[0];
       return {
         name: otherUser?.nombre || 'Private Chat',
         description: otherUser?.estado === 'activo' ? 'Online' : 'Offline',
+        userForAvatar: otherUser
       };
     }
     return {
       name: chat.nombre || 'Group Chat',
       description: `${chat.participantes.length} members`,
+      userForAvatar: null
     };
   };
 
-  const { name, description } = getChatDetails();
-  const participantUsers = users.filter(u => chat.participantes.includes(u.id));
-
+  const { name, description, userForAvatar } = getChatDetails();
+  
   return (
     <div className="flex h-16 items-center gap-4 border-b bg-card px-4 md:px-6">
       <div className="flex items-center gap-3">
         {chat.tipo === 'privado' ? (
-          <UserAvatar user={participantUsers.find(u => u.id !== 'u1')!} />
+           userForAvatar && <UserAvatar user={userForAvatar} />
         ) : (
           <div className="relative flex -space-x-2">
-            {participantUsers.slice(0, 3).map(user => (
+            {participantUsers?.slice(0, 3).map(user => (
               <UserAvatar key={user.id} user={user} className="h-9 w-9 border-2 border-card" />
             ))}
           </div>

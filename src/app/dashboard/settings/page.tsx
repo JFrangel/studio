@@ -1,3 +1,4 @@
+'use client';
 import { MainHeader } from '../_components/main-header';
 import {
   Card,
@@ -11,7 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { UserAvatar } from '@/components/user-avatar';
-import { currentUser } from '@/lib/data';
+import { useUser, useFirestore, setDocumentNonBlocking } from '@/firebase';
 import { Camera } from 'lucide-react';
 import {
   Select,
@@ -20,9 +21,69 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Separator } from '@/components/ui/separator';
+import { useState, useEffect } from 'react';
+import { doc } from 'firebase/firestore';
 
 export default function SettingsPage() {
+  const { user, isUserLoading } = useUser();
+  const firestore = useFirestore();
+  const [name, setName] = useState('');
+  const [status, setStatus] = useState('activo');
+
+  useEffect(() => {
+    if (user) {
+      setName(user.displayName || '');
+      // In a real app, you'd fetch the user profile from Firestore to get the status
+    }
+  }, [user]);
+
+  const handleProfileSave = () => {
+    if (!user || !firestore) return;
+    const userDocRef = doc(firestore, 'users', user.uid);
+    setDocumentNonBlocking(userDocRef, {
+      nombre: name,
+      estado: status,
+    }, { merge: true });
+  };
+  
+  if (isUserLoading || !user) {
+    return (
+       <div className="flex h-screen flex-col">
+        <MainHeader title="Settings" />
+        <main className="flex-1 overflow-y-auto p-4 md:p-6">
+          <div className="mx-auto grid max-w-3xl gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="font-headline">Profile</CardTitle>
+                <CardDescription>
+                  This is your public display name and avatar.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                 <div className="h-20 w-full bg-muted rounded-md animate-pulse"></div>
+                 <div className="h-10 w-full bg-muted rounded-md animate-pulse"></div>
+              </CardContent>
+               <CardFooter className="border-t px-6 py-4">
+                <Button disabled>Save</Button>
+              </CardFooter>
+            </Card>
+          </div>
+        </main>
+      </div>
+    )
+  }
+  
+  const userProfile = {
+      id: user.uid,
+      nombre: user.displayName || user.email || 'User',
+      email: user.email || '',
+      rol: 'usuario',
+      foto: user.photoURL || `https://picsum.photos/seed/${user.uid}/200/200`,
+      ultimoLogin: user.metadata.lastSignInTime || new Date().toISOString(),
+      estado: 'activo',
+  };
+
+
   return (
     <div className="flex h-screen flex-col">
       <MainHeader title="Settings" />
@@ -38,7 +99,7 @@ export default function SettingsPage() {
             <CardContent className="space-y-4">
               <div className="flex items-center gap-4">
                 <div className="relative">
-                  <UserAvatar user={currentUser} className="h-20 w-20" />
+                  <UserAvatar user={userProfile} className="h-20 w-20" />
                   <Button
                     size="icon"
                     variant="outline"
@@ -50,12 +111,12 @@ export default function SettingsPage() {
                 </div>
                 <div className="grid flex-1 gap-2">
                   <Label htmlFor="name">Full Name</Label>
-                  <Input id="name" defaultValue={currentUser.nombre} />
+                  <Input id="name" value={name} onChange={(e) => setName(e.target.value)} />
                 </div>
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="status">Status</Label>
-                <Select defaultValue={currentUser.estado}>
+                <Select value={status} onValueChange={setStatus}>
                   <SelectTrigger id="status" className="w-[200px]">
                     <SelectValue placeholder="Select status" />
                   </SelectTrigger>
@@ -69,7 +130,7 @@ export default function SettingsPage() {
               </div>
             </CardContent>
             <CardFooter className="border-t px-6 py-4">
-              <Button>Save</Button>
+              <Button onClick={handleProfileSave}>Save</Button>
             </CardFooter>
           </Card>
 
