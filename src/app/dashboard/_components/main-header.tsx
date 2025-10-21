@@ -1,4 +1,4 @@
-import { Bell, Search } from 'lucide-react';
+import { Bell, Search, Menu, ChevronLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -9,13 +9,21 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
-import { SidebarTrigger } from '@/components/ui/sidebar';
+import { useSidebar } from '@/components/ui/sidebar';
 
 export function MainHeader({ title }: { title: string }) {
+  const { toggleSidebar } = useSidebar();
+
   return (
     <header className="flex h-16 items-center gap-4 border-b bg-card px-4 md:px-6 sticky top-0 z-30">
       <div className="md:hidden">
-        <SidebarTrigger />
+        <Button 
+          onClick={toggleSidebar}
+          className="h-9 w-9 p-0 border bg-primary/10 hover:bg-primary/20"
+          aria-label="Abrir menú de chats"
+        >
+          <ChevronLeft className="h-5 w-5" />
+        </Button>
       </div>
       <h1 className="flex-1 text-lg font-headline font-semibold md:text-2xl">{title}</h1>
       <div className="flex items-center gap-4">
