@@ -57,7 +57,7 @@ function MessageItem({ message }: { message: Message & { id: string } }) {
         >
           {!isSelf && (
             <p className="mb-1 text-xs font-semibold text-primary">
-              {sender.nombre}
+              {sender.name}
             </p>
           )}
           <p className="whitespace-pre-wrap">{message.content}</p>

@@ -31,8 +31,8 @@ export function ChatHeader({ chat }: { chat: Chat & {id: string} }) {
       }
       const otherUser = participantUsers?.[0];
       return {
-        name: otherUser?.nombre || 'Private Chat',
-        description: otherUser?.estado === 'activo' ? 'Online' : 'Offline',
+        name: otherUser?.name || 'Private Chat',
+        description: otherUser?.status === 'active' ? 'Online' : 'Offline',
         userForAvatar: otherUser,
         isPersonal: false,
       };

@@ -46,7 +46,7 @@ function ChatListItem({ chat }: { chat: Chat & { id: string } }) {
     }
     if (chat.type === 'private') {
       return {
-        name: otherUser?.nombre || 'Private Chat',
+        name: otherUser?.name || 'Private Chat',
         avatarUser: otherUser,
         isPersonal: false
       };
