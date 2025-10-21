@@ -9,17 +9,18 @@ import type { Chat, Message } from '@/lib/types';
 
 export default function ChatPage({ params }: { params: { id: string } }) {
   const firestore = useFirestore();
+  const chatId = params.id;
 
   const chatRef = useMemoFirebase(() => {
-    if (!firestore || !params.id) return null;
-    return doc(firestore, 'chats', params.id);
-  }, [firestore, params.id]);
+    if (!firestore || !chatId) return null;
+    return doc(firestore, 'chats', chatId);
+  }, [firestore, chatId]);
   const { data: chat, isLoading: isChatLoading } = useDoc<Chat>(chatRef);
 
   const messagesQuery = useMemoFirebase(() => {
-    if (!firestore || !params.id) return null;
-    return query(collection(firestore, 'chats', params.id, 'messages'), orderBy('enviadoEn', 'asc'));
-  }, [firestore, params.id]);
+    if (!firestore || !chatId) return null;
+    return query(collection(firestore, 'chats', chatId, 'messages'), orderBy('enviadoEn', 'asc'));
+  }, [firestore, chatId]);
 
   const { data: messages, isLoading: areMessagesLoading } = useCollection<Message>(messagesQuery);
 
@@ -35,7 +36,7 @@ export default function ChatPage({ params }: { params: { id: string } }) {
     <div className="flex h-screen flex-col">
       <ChatHeader chat={chat} />
       <ChatMessages messages={messages || []} isLoading={areMessagesLoading} />
-      <MessageInput chatId={params.id} />
+      <MessageInput chatId={chatId} />
     </div>
   );
 }
