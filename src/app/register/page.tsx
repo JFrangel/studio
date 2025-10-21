@@ -18,18 +18,7 @@ import {
   initiateGoogleSignIn,
 } from '@/firebase/non-blocking-login';
 import { useRouter } from 'next/navigation';
-import {
-  doc,
-  collection,
-  getDoc,
-  setDoc,
-  addDoc,
-} from 'firebase/firestore';
 import { Separator } from '@/components/ui/separator';
-
-function generatePin() {
-  return Math.floor(100000 + Math.random() * 900000).toString();
-}
 
 function GoogleIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
@@ -70,75 +59,32 @@ export default function RegisterPage() {
   const { user } = useUser();
   const router = useRouter();
 
+  useEffect(() => {
+    // Redirect if user is already logged in
+    if (user) {
+      router.push('/dashboard');
+    }
+  }, [user, router]);
+
   const handleRegister = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!auth || !name) {
+    if (!auth || !firestore || !name) {
       setError('Full name is required.');
       return;
     }
     setError('');
-    // The useEffect will handle profile creation on successful sign-up
-    initiateEmailSignUp(auth, email, password, (error) => {
+    initiateEmailSignUp(auth, firestore, email, password, name, (error) => {
       setError(error.message);
     });
   };
 
   const handleGoogleSignIn = () => {
-    if (!auth) return;
+    if (!auth || !firestore) return;
     setError('');
-    // The useEffect will handle profile creation on successful sign-in
-    initiateGoogleSignIn(auth, (error) => {
+    initiateGoogleSignIn(auth, firestore, (error) => {
       setError(error.message);
     });
   };
-
-  useEffect(() => {
-    if (user && firestore) {
-      const userDocRef = doc(firestore, 'users', user.uid);
-
-      const setupNewUser = async () => {
-        // Check if user document already exists
-        const docSnap = await getDoc(userDocRef);
-        if (!docSnap.exists()) {
-          // New user, create profile document
-          const userPin = generatePin();
-          await setDoc(userDocRef, {
-            id: user.uid,
-            name: name || user.displayName, // Use provided name or Google display name
-            email: user.email,
-            pin: userPin,
-            role: 'user',
-            photo: user.photoURL || `https://i.pravatar.cc/150?u=${user.uid}`,
-            lastLogin: new Date().toISOString(),
-            status: 'active',
-          });
-
-          // Create a personal chat for the user
-          const chatsColRef = collection(firestore, 'chats');
-          await addDoc(chatsColRef, {
-            createdAt: new Date().toISOString(),
-            createdBy: user.uid,
-            participantIds: [user.uid],
-            type: 'private',
-            name: 'My Notes',
-          });
-        } else {
-          // Existing user, just update last login
-          await setDoc(
-            userDocRef,
-            { lastLogin: new Date().toISOString() },
-            { merge: true }
-          );
-        }
-        router.push('/dashboard');
-      };
-
-      setupNewUser().catch((e) => {
-        console.error('Error setting up user:', e);
-        setError('Failed to set up user profile.');
-      });
-    }
-  }, [user, firestore, name, router]);
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center bg-background p-4">

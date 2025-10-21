@@ -13,7 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Logo } from '@/components/logo';
 import { useState, useEffect } from 'react';
-import { useAuth, useUser } from '@/firebase';
+import { useAuth, useUser, useFirestore } from '@/firebase';
 import {
   initiateEmailSignIn,
   initiateGoogleSignIn,
@@ -55,6 +55,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const auth = useAuth();
+  const firestore = useFirestore();
   const { user } = useUser();
   const router = useRouter();
 
@@ -73,8 +74,8 @@ export default function LoginPage() {
   };
 
   const handleGoogleSignIn = () => {
-    if (!auth) return;
-    initiateGoogleSignIn(auth, (error) => {
+    if (!auth || !firestore) return;
+    initiateGoogleSignIn(auth, firestore, (error) => {
       setError(error.message);
     });
   };
