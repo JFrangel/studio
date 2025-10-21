@@ -67,11 +67,15 @@ service cloud.firestore {
       }
 
       function isParticipant() {
-        return isSignedIn() && request.auth.uid in resource.data.participantIds;
+        return isSignedIn() && 
+               resource.data.participantIds != null &&
+               request.auth.uid in resource.data.participantIds;
       }
 
       function isParticipantInNewChat() {
-        return isSignedIn() && request.auth.uid in request.resource.data.participantIds;
+        return isSignedIn() && 
+               request.resource.data.participantIds != null &&
+               request.auth.uid in request.resource.data.participantIds;
       }
 
       function isChatCreator() {
@@ -93,9 +97,10 @@ service cloud.firestore {
 
     /**
      * @description Secure messages within a chat. Only chat participants can access messages.
+     * Messages can be created by participants or as system messages.
      * @path /chats/{chatId}/messages/{messageId}
      * @allow (get, list) if the user is a participant in the chat.
-     * @allow (create) if the user is a participant in the chat.
+     * @allow (create) if the user is a participant in the chat, or if it's a system message created by a participant.
      * @allow (update, delete) if the user is the sender and the chat participant.
      * @deny any operation if the user is not a participant.
      * @principle Enforces chat membership for message access.
@@ -116,9 +121,22 @@ service cloud.firestore {
         return isSignedIn() && request.auth.uid == resource.data.senderId;
       }
 
+      function isSystemMessage() {
+        return request.resource.data.senderId == 'system' && 
+               request.resource.data.type == 'system';
+      }
+
+      function isChatAdmin(chatId) {
+        let chatDoc = get(/databases/$(database)/documents/chats/$(chatId));
+        return isSignedIn() && 
+               chatDoc != null &&
+               chatDoc.data.adminIds != null && 
+               request.auth.uid in chatDoc.data.adminIds;
+      }
+
       allow get: if isParticipant(chatId);
       allow list: if isParticipant(chatId);
-      allow create: if isParticipant(chatId);
+      allow create: if isParticipant(chatId) || (isSystemMessage() && isChatAdmin(chatId));
       allow update: if isSender(messageId) && isParticipant(chatId);
       allow delete: if isSender(messageId) && isParticipant(chatId);
     }

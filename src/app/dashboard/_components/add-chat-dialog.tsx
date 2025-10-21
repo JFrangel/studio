@@ -56,8 +56,42 @@ export function AddChatDialog({
       const otherUser = otherUserDoc.data() as User;
       const otherUserId = otherUserDoc.id;
       
+      // Si es el mismo usuario, abrir su chat personal (notas)
       if(otherUserId === currentUser.uid) {
-        throw new Error("You can't start a chat with yourself.");
+        // Buscar el chat personal
+        const chatsRef = collection(firestore, 'chats');
+        const personalChatQuery = query(
+          chatsRef,
+          where('type', '==', 'private'),
+          where('participantIds', '==', [currentUser.uid])
+        );
+        const personalChatsSnapshot = await getDocs(personalChatQuery);
+        
+        if (!personalChatsSnapshot.empty) {
+          // Ya existe el chat personal
+          const personalChatId = personalChatsSnapshot.docs[0].id;
+          onOpenChange(false);
+          setPin('');
+          router.push(`/dashboard/chat/${personalChatId}`);
+          return;
+        } else {
+          // Crear chat personal si no existe
+          const newPersonalChatRef = await addDoc(collection(firestore, 'chats'), {
+            createdAt: new Date().toISOString(),
+            createdBy: currentUser.uid,
+            participantIds: [currentUser.uid],
+            type: 'private',
+          });
+          
+          toast({
+            title: "Chat personal abierto",
+            description: "Este es tu espacio personal para notas.",
+          });
+          onOpenChange(false);
+          setPin('');
+          router.push(`/dashboard/chat/${newPersonalChatRef.id}`);
+          return;
+        }
       }
 
       // 2. Check if a private chat already exists

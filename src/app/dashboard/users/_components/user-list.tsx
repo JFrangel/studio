@@ -17,12 +17,16 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
-import { MoreHorizontal, ShieldAlert } from 'lucide-react';
+import { MoreHorizontal, ShieldAlert, Eye, MessageSquare } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
-import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection } from 'firebase/firestore';
+import { RoleBadge } from '@/components/role-badges';
+import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
+import { collection, query, where, doc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card } from '@/components/ui/card';
+import { useState } from 'react';
+import { UserDetailsDialog } from './user-details-dialog';
+import { useRouter } from 'next/navigation';
 
 const roleVariantMap: { [key in User['role']]: 'default' | 'secondary' | 'outline' } = {
   admin: 'default',
@@ -39,6 +43,10 @@ const statusClasses: { [key in User['status']]: string } = {
 
 export function UserList() {
   const firestore = useFirestore();
+  const { user: currentUser } = useUser();
+  const router = useRouter();
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
 
   const usersQuery = useMemoFirebase(() => {
     if (!firestore) return null;
@@ -46,6 +54,29 @@ export function UserList() {
   }, [firestore]);
   
   const { data: users, isLoading, error } = useCollection<User>(usersQuery);
+
+  const handleViewDetails = (user: User) => {
+    console.log('View details for user:', user);
+    setSelectedUser(user);
+    setIsDetailsDialogOpen(true);
+  };
+
+  const handleSendMessage = async (user: User) => {
+    console.log('Send message to user:', user);
+    if (!firestore || !currentUser) return;
+    
+    // Buscar si ya existe un chat privado con este usuario
+    const chatsRef = collection(firestore, 'chats');
+    const q = query(
+      chatsRef,
+      where('type', '==', 'private'),
+      where('participantIds', 'array-contains', currentUser.uid)
+    );
+    
+    // Por ahora, simplemente navegar al dashboard
+    // La lógica de crear/buscar chat se puede implementar después
+    router.push('/dashboard');
+  };
 
   if (isLoading) {
     return (
@@ -118,7 +149,10 @@ export function UserList() {
                 <div className="flex items-center gap-3">
                   <UserAvatar user={user} className="h-10 w-10" />
                   <div className="font-medium">
-                    <p>{user.name}</p>
+                    <div className="flex items-center gap-2">
+                      <p>{user.name}</p>
+                      {user.role === 'admin' && <RoleBadge type="platform-admin" size="sm" />}
+                    </div>
                     <p className="text-sm text-muted-foreground md:hidden">{user.email}</p>
                   </div>
                 </div>
@@ -146,8 +180,14 @@ export function UserList() {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem>Edit</DropdownMenuItem>
-                    <DropdownMenuItem>Delete</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleViewDetails(user)}>
+                      <Eye className="mr-2 h-4 w-4" />
+                      Ver Detalles
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleSendMessage(user)}>
+                      <MessageSquare className="mr-2 h-4 w-4" />
+                      Enviar Mensaje
+                    </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </TableCell>
@@ -155,6 +195,14 @@ export function UserList() {
           ))}
         </TableBody>
       </Table>
+
+      {selectedUser && (
+        <UserDetailsDialog
+          user={selectedUser}
+          open={isDetailsDialogOpen}
+          onOpenChange={setIsDetailsDialogOpen}
+        />
+      )}
     </Card>
   );
 }

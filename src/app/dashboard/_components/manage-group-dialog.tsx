@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useUser, useFirestore, setDocumentNonBlocking } from '@/firebase';
+import { useUser, useFirestore, setDocumentNonBlocking, addDocumentNonBlocking } from '@/firebase';
 import { collection, doc, getDoc, getDocs, query, where, arrayUnion, arrayRemove, deleteDoc } from 'firebase/firestore';
 import {
   Dialog,
@@ -27,9 +27,13 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { UserAvatar } from '@/components/user-avatar';
-import { Shield, ShieldOff, UserMinus, AlertTriangle, Edit, Users, Plus, Clock, Info, Copy, Check, Link2, Hash } from 'lucide-react';
-import type { User, Chat } from '@/lib/types';
+import { Shield, ShieldOff, UserMinus, AlertTriangle, Edit, Users, Plus, Clock, Info, Copy, Check, Link2, Hash, Sparkles, Eye, MessageSquare } from 'lucide-react';
+import type { User, Chat, Message } from '@/lib/types';
 import { useRouter } from 'next/navigation';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { getAvatarUrl, type GroupAvatarStyle } from '@/lib/avatars';
+import { GroupAvatarPicker } from '@/components/group-avatar-picker';
+import { RoleBadge, GroupBadge } from '@/components/role-badges';
 
 const DEFAULT_GROUP_IMAGES = [
   '👥', '🎉', '💼', '🏠', '🎮', '📚', '🎨', '🏋️', 
@@ -56,6 +60,8 @@ export function ManageGroupDialog({ open, onOpenChange, chat }: ManageGroupDialo
   const [groupName, setGroupName] = useState('');
   const [description, setDescription] = useState('');
   const [selectedImage, setSelectedImage] = useState(DEFAULT_GROUP_IMAGES[0]);
+  const [useAnimatedAvatar, setUseAnimatedAvatar] = useState(false);
+  const [selectedAvatarSeed, setSelectedAvatarSeed] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
   
@@ -79,6 +85,8 @@ export function ManageGroupDialog({ open, onOpenChange, chat }: ManageGroupDialo
       setGroupName(chat.name || '');
       setDescription(chat.description || '');
       setSelectedImage(chat.groupImage || DEFAULT_GROUP_IMAGES[0]);
+      setUseAnimatedAvatar(chat.groupAvatarStyle === 'avatar');
+      setSelectedAvatarSeed(chat.groupAvatarSeed || null);
       setError('');
     }
   }, [open, firestore, chat.participantIds]);
@@ -169,7 +177,7 @@ export function ManageGroupDialog({ open, onOpenChange, chat }: ManageGroupDialo
       return;
     }
 
-    if (!firestore) return;
+    if (!firestore || !currentUser) return;
 
     setIsSaving(true);
     setError('');
@@ -178,14 +186,63 @@ export function ManageGroupDialog({ open, onOpenChange, chat }: ManageGroupDialo
       const chatRef = doc(firestore, 'chats', chat.id);
       const updateData: any = {
         name: groupName,
-        groupImage: selectedImage,
+        lastMessageAt: new Date().toISOString(),
       };
+
+      // Configurar avatar del grupo
+      if (useAnimatedAvatar && selectedAvatarSeed) {
+        updateData.groupAvatarStyle = 'avatar';
+        updateData.groupAvatarSeed = selectedAvatarSeed;
+        // Limpiar groupImage si se usa avatar animado
+        updateData.groupImage = null;
+      } else {
+        updateData.groupAvatarStyle = 'emoji';
+        updateData.groupImage = selectedImage;
+        // Limpiar groupAvatarSeed si se usa emoji
+        updateData.groupAvatarSeed = null;
+      }
 
       if (description.trim()) {
         updateData.description = description;
       }
 
       await setDocumentNonBlocking(chatRef, updateData, { merge: true });
+
+      // Crear mensajes del sistema para cambios
+      const messagesRef = collection(firestore, 'chats', chat.id, 'messages');
+      const now = new Date().toISOString();
+      const userName = currentUser.displayName || currentUser.email;
+
+      // Mensaje si cambió la descripción
+      if (description !== chat.description) {
+        const descMessage: Omit<Message, 'id'> = {
+          senderId: 'system',
+          content: `${userName} actualizó la descripción del grupo`,
+          type: 'system',
+          systemMessageType: 'description_updated',
+          readBy: [],
+          sentAt: now,
+          edited: false,
+        };
+        await addDocumentNonBlocking(messagesRef, descMessage);
+      }
+
+      // Mensaje si cambió el icono/avatar
+      const oldIcon = chat.groupAvatarStyle === 'avatar' ? 'avatar animado' : (chat.groupImage || '👥');
+      const newIcon = useAnimatedAvatar ? 'avatar animado' : selectedImage;
+      if (oldIcon !== newIcon) {
+        const iconMessage: Omit<Message, 'id'> = {
+          senderId: 'system',
+          content: `${userName} cambió el icono del grupo`,
+          type: 'system',
+          systemMessageType: 'icon_updated',
+          readBy: [],
+          sentAt: now,
+          edited: false,
+        };
+        await addDocumentNonBlocking(messagesRef, iconMessage);
+      }
+
       setError('');
     } catch (error) {
       console.error('Error updating group:', error);
@@ -287,6 +344,49 @@ export function ManageGroupDialog({ open, onOpenChange, chat }: ManageGroupDialo
     }
   };
 
+  const handleSendMessage = async (participant: User) => {
+    if (!firestore || !currentUser) return;
+
+    try {
+      // Buscar si ya existe un chat privado con este usuario
+      const chatsRef = collection(firestore, 'chats');
+      const q = query(
+        chatsRef,
+        where('type', '==', 'private'),
+        where('participantIds', 'array-contains', currentUser.uid)
+      );
+      
+      const querySnapshot = await getDocs(q);
+      
+      // Buscar un chat existente con este usuario específico
+      const existingChat = querySnapshot.docs.find(doc => {
+        const chatData = doc.data();
+        return chatData.participantIds.includes(participant.id) && chatData.participantIds.length === 2;
+      });
+
+      if (existingChat) {
+        // Ya existe un chat, navegar a él
+        router.push(`/dashboard/chat/${existingChat.id}`);
+        onOpenChange(false);
+      } else {
+        // Crear nuevo chat
+        const newChatRef = await addDocumentNonBlocking(chatsRef, {
+          createdAt: new Date().toISOString(),
+          createdBy: currentUser.uid,
+          participantIds: [currentUser.uid, participant.id],
+          type: 'private',
+        });
+        
+        if (newChatRef) {
+          router.push(`/dashboard/chat/${newChatRef.id}`);
+          onOpenChange(false);
+        }
+      }
+    } catch (error) {
+      console.error('Error creating/opening chat:', error);
+    }
+  };
+
   const handleRemoveParticipant = async (user: User) => {
     if (!firestore || !isCurrentUserAdmin || !currentUser) return;
 
@@ -365,48 +465,69 @@ export function ManageGroupDialog({ open, onOpenChange, chat }: ManageGroupDialo
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto w-[95vw]">
           <DialogHeader>
-            <DialogTitle>Group Settings</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="text-base sm:text-lg">Group Settings</DialogTitle>
+            <DialogDescription className="text-xs sm:text-sm">
               Edit group details, manage members and administrators
             </DialogDescription>
           </DialogHeader>
 
-          <Tabs defaultValue={isCurrentUserAdmin ? "info" : "members"} className="w-full">
-            <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="info">
-                <Info className="h-4 w-4 mr-2" />
-                Info
+          <Tabs defaultValue="info" className="w-full">
+            <TabsList className={`grid w-full ${isCurrentUserAdmin ? 'grid-cols-4' : 'grid-cols-3'}`}>
+              <TabsTrigger value="info" className="text-xs sm:text-sm px-2">
+                <Info className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Info</span>
               </TabsTrigger>
-              <TabsTrigger value="details">
-                <Edit className="h-4 w-4 mr-2" />
-                Details
+              {isCurrentUserAdmin && (
+                <TabsTrigger value="details" className="text-xs sm:text-sm px-2">
+                  <Edit className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-2" />
+                  <span className="hidden sm:inline">Details</span>
+                </TabsTrigger>
+              )}
+              <TabsTrigger value="members" className="text-xs sm:text-sm px-2">
+                <Users className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Members</span>
+                <span className="sm:hidden">({participants.length})</span>
               </TabsTrigger>
-              <TabsTrigger value="members">
-                <Users className="h-4 w-4 mr-2" />
-                Members ({participants.length})
-              </TabsTrigger>
-              <TabsTrigger value="add">
-                <Plus className="h-4 w-4 mr-2" />
-                Add
-              </TabsTrigger>
+              {isCurrentUserAdmin && (
+                <TabsTrigger value="add" className="text-xs sm:text-sm px-2">
+                  <Plus className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-2" />
+                  <span className="hidden sm:inline">Add</span>
+                </TabsTrigger>
+              )}
             </TabsList>
 
             {/* Info Tab */}
             <TabsContent value="info" className="space-y-4 mt-4">
               <div className="space-y-4">
                 {/* Group Basic Info */}
-                <div className="flex items-center gap-4 p-4 rounded-lg bg-muted">
-                  <div className="text-4xl">
-                    {chat.groupImage || '👥'}
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-lg">{chat.name || 'Group Chat'}</h3>
+                <div className="flex items-center gap-3 sm:gap-4 p-3 sm:p-4 rounded-lg bg-muted">
+                  {chat.groupAvatarStyle === 'avatar' && chat.groupAvatarSeed ? (
+                    <Avatar className="h-12 w-12 sm:h-16 sm:w-16">
+                      <AvatarImage 
+                        src={getAvatarUrl(
+                          chat.groupAvatarSeed,
+                          chat.groupAvatarSeed.split('-')[0] as GroupAvatarStyle
+                        )} 
+                        alt={chat.name || 'Group'}
+                      />
+                      <AvatarFallback className="text-2xl sm:text-4xl">{chat.name?.[0] || '👥'}</AvatarFallback>
+                    </Avatar>
+                  ) : (
+                    <div className="text-3xl sm:text-4xl">
+                      {chat.groupImage || '👥'}
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-semibold text-base sm:text-lg truncate">{chat.name || 'Group Chat'}</h3>
+                      <GroupBadge />
+                    </div>
                     {chat.description && (
-                      <p className="text-sm text-muted-foreground mt-1">{chat.description}</p>
+                      <p className="text-xs sm:text-sm text-muted-foreground mt-1 line-clamp-2">{chat.description}</p>
                     )}
-                    <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
+                    <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground flex-wrap">
                       <Users className="h-3 w-3" />
                       <span>{participants.length} members</span>
                       {chat.isPublic !== undefined && (
@@ -421,12 +542,12 @@ export function ManageGroupDialog({ open, onOpenChange, chat }: ManageGroupDialo
                   </div>
                 </div>
 
-                {/* PIN and Invite Info - Only for admins */}
-                {isCurrentUserAdmin && (chat.groupPin || chat.inviteCode) && (
+                {/* PIN and Invite Info - Available to all members */}
+                {(chat.groupPin || chat.inviteCode) && (
                   <div className="space-y-3">
                     <h4 className="text-sm font-medium flex items-center gap-2">
-                      <Shield className="h-4 w-4" />
-                      Admin Info
+                      <Users className="h-4 w-4" />
+                      Información del Grupo
                     </h4>
 
                     {/* Group PIN */}
@@ -434,15 +555,15 @@ export function ManageGroupDialog({ open, onOpenChange, chat }: ManageGroupDialo
                       <div className="space-y-2">
                         <Label className="text-xs text-muted-foreground">Group PIN</Label>
                         <div className="flex items-center gap-2">
-                          <div className="flex-1 p-3 rounded-lg bg-muted font-mono text-lg tracking-wider flex items-center justify-center">
-                            <Hash className="h-4 w-4 mr-2 text-muted-foreground" />
-                            {chat.groupPin}
+                          <div className="flex-1 p-2 sm:p-3 rounded-lg bg-muted font-mono text-base sm:text-lg tracking-wider flex items-center justify-center min-w-0">
+                            <Hash className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2 text-muted-foreground shrink-0" />
+                            <span className="truncate">{chat.groupPin}</span>
                           </div>
                           <Button
                             onClick={handleCopyPin}
-                            className="shrink-0 border h-10 w-10 p-0"
+                            className="shrink-0 border h-8 w-8 sm:h-10 sm:w-10 p-0"
                           >
-                            {copiedPin ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                            {copiedPin ? <Check className="h-3 w-3 sm:h-4 sm:w-4 text-green-500" /> : <Copy className="h-3 w-3 sm:h-4 sm:w-4" />}
                           </Button>
                         </div>
                         <p className="text-xs text-muted-foreground">
@@ -456,17 +577,17 @@ export function ManageGroupDialog({ open, onOpenChange, chat }: ManageGroupDialo
                       <div className="space-y-2">
                         <Label className="text-xs text-muted-foreground">Invite Link</Label>
                         <div className="flex items-center gap-2">
-                          <div className="flex-1 p-3 rounded-lg bg-muted text-sm truncate flex items-center">
-                            <Link2 className="h-4 w-4 mr-2 text-muted-foreground shrink-0" />
+                          <div className="flex-1 p-2 sm:p-3 rounded-lg bg-muted text-xs sm:text-sm flex items-center min-w-0">
+                            <Link2 className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2 text-muted-foreground shrink-0" />
                             <span className="truncate">
                               {typeof window !== 'undefined' ? `${window.location.origin}/dashboard/join/${chat.inviteCode}` : chat.inviteCode}
                             </span>
                           </div>
                           <Button
                             onClick={handleCopyInviteLink}
-                            className="shrink-0 border h-10 w-10 p-0"
+                            className="shrink-0 border h-8 w-8 sm:h-10 sm:w-10 p-0"
                           >
-                            {copiedInvite ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                            {copiedInvite ? <Check className="h-3 w-3 sm:h-4 sm:w-4 text-green-500" /> : <Copy className="h-3 w-3 sm:h-4 sm:w-4" />}
                           </Button>
                         </div>
                         <p className="text-xs text-muted-foreground">
@@ -493,21 +614,65 @@ export function ManageGroupDialog({ open, onOpenChange, chat }: ManageGroupDialo
                 <>
                   {/* Group Image Selection */}
                   <div>
-                    <Label>Group Image</Label>
-                    <div className="grid grid-cols-8 gap-2 mt-2">
-                      {DEFAULT_GROUP_IMAGES.map((emoji) => (
-                        <button
-                          key={emoji}
-                          type="button"
-                          onClick={() => setSelectedImage(emoji)}
-                          className={`text-3xl p-2 rounded-lg hover:bg-accent transition-colors ${
-                            selectedImage === emoji ? 'bg-accent ring-2 ring-primary' : ''
-                          }`}
-                        >
-                          {emoji}
-                        </button>
-                      ))}
+                    <div className="flex items-center justify-between mb-2">
+                      <Label>Imagen del Grupo</Label>
+                      <button
+                        type="button"
+                        onClick={() => setUseAnimatedAvatar(!useAnimatedAvatar)}
+                        className="text-xs sm:text-sm text-primary hover:underline flex items-center gap-1"
+                      >
+                        <Sparkles className="h-3 w-3 sm:h-4 sm:w-4" />
+                        <span className="hidden sm:inline">
+                          {useAnimatedAvatar ? 'Usar emoji' : 'Usar avatar animado'}
+                        </span>
+                        <span className="sm:hidden">
+                          {useAnimatedAvatar ? 'Emoji' : 'Avatar'}
+                        </span>
+                      </button>
                     </div>
+
+                    {!useAnimatedAvatar ? (
+                      <div className="grid grid-cols-6 sm:grid-cols-8 gap-2">
+                        {DEFAULT_GROUP_IMAGES.map((emoji) => (
+                          <button
+                            key={emoji}
+                            type="button"
+                            onClick={() => setSelectedImage(emoji)}
+                            className={`text-2xl sm:text-3xl p-2 rounded-lg hover:bg-accent transition-colors ${
+                              selectedImage === emoji ? 'bg-accent ring-2 ring-primary' : ''
+                            }`}
+                          >
+                            {emoji}
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="border rounded-lg p-2 sm:p-4 space-y-4">
+                        {selectedAvatarSeed && (
+                          <div className="flex items-center gap-3 p-2 sm:p-3 bg-muted rounded-lg">
+                            <Avatar className="h-10 w-10 sm:h-12 sm:w-12">
+                              <AvatarImage 
+                                src={getAvatarUrl(
+                                  selectedAvatarSeed,
+                                  selectedAvatarSeed.split('-')[0] as GroupAvatarStyle
+                                )} 
+                                alt="Selected avatar"
+                              />
+                            </Avatar>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs sm:text-sm font-medium">Avatar seleccionado</p>
+                              <p className="text-xs text-muted-foreground truncate">
+                                Click abajo para cambiar
+                              </p>
+                            </div>
+                          </div>
+                        )}
+                        <GroupAvatarPicker 
+                          onSelect={setSelectedAvatarSeed}
+                          currentSeed={selectedAvatarSeed || undefined}
+                        />
+                      </div>
+                    )}
                   </div>
 
                   {/* Group Name */}
@@ -570,11 +735,11 @@ export function ManageGroupDialog({ open, onOpenChange, chat }: ManageGroupDialo
             {/* Members Tab */}
             <TabsContent value="members" className="space-y-4 mt-4">
               {isLoading ? (
-                <div className="py-8 text-center text-muted-foreground">
+                <div className="py-8 text-center text-muted-foreground text-sm">
                   Loading participants...
                 </div>
               ) : (
-                <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                <div className="space-y-2 max-h-[50vh] sm:max-h-[400px] overflow-y-auto">
                   {participants.map((participant) => {
                     const isAdmin = chat.adminIds?.includes(participant.id);
                     const isCreator = participant.id === chat.createdBy;
@@ -583,33 +748,57 @@ export function ManageGroupDialog({ open, onOpenChange, chat }: ManageGroupDialo
                     return (
                       <div
                         key={participant.id}
-                        className="flex items-center gap-3 p-3 rounded-lg bg-muted"
+                        className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 rounded-lg bg-muted"
                       >
-                        <UserAvatar user={participant} className="h-10 w-10" />
+                        <UserAvatar user={participant} className="h-8 w-8 sm:h-10 sm:w-10" />
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <p className="text-sm font-medium truncate">
+                          <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
+                            <p className="text-xs sm:text-sm font-medium truncate">
                               {participant.name}
                             </p>
-                            {isCreator && (
-                              <Badge className="text-xs bg-primary">
-                                Creator
-                              </Badge>
+                            {/* Insignia de admin de plataforma */}
+                            {participant.role === 'admin' && (
+                              <RoleBadge type="platform-admin" size="sm" />
                             )}
+                            {/* Insignia de creador del grupo */}
+                            {isCreator && (
+                              <RoleBadge type="group-creator" size="sm" />
+                            )}
+                            {/* Insignia de co-creador/admin del grupo */}
                             {isAdmin && !isCreator && (
-                              <Badge className="text-xs bg-secondary">
-                                Admin
-                              </Badge>
+                              <RoleBadge type="group-admin" size="sm" />
                             )}
                             {participant.id === currentUser?.uid && (
-                              <Badge className="text-xs border">
+                              <Badge className="text-xs border px-1 py-0">
                                 You
                               </Badge>
                             )}
                           </div>
-                          <p className="text-xs text-muted-foreground truncate">
+                          <p className="text-xs text-muted-foreground truncate hidden sm:block">
                             {participant.email}
                           </p>
+                        </div>
+
+                        {/* Actions - Ver perfil y enviar mensaje */}
+                        <div className="flex gap-1">
+                          <button
+                            type="button"
+                            onClick={() => router.push(`/dashboard/profile/${participant.id}`)}
+                            title="Ver perfil"
+                            className="p-2 hover:bg-accent rounded-md"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </button>
+                          {participant.id !== currentUser?.uid && (
+                            <button
+                              type="button"
+                              onClick={() => handleSendMessage(participant)}
+                              title="Enviar mensaje"
+                              className="p-2 hover:bg-accent rounded-md"
+                            >
+                              <MessageSquare className="h-4 w-4" />
+                            </button>
+                          )}
                         </div>
 
                         {/* Actions for admins */}

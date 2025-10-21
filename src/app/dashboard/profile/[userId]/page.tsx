@@ -12,6 +12,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertCircle, ArrowLeft, Copy, Check } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { RoleBadge } from '@/components/role-badges';
 
 export default function ProfilePage({ params }: { params: Promise<{ userId: string }> }) {
   const firestore = useFirestore();
@@ -19,6 +20,7 @@ export default function ProfilePage({ params }: { params: Promise<{ userId: stri
   const router = useRouter();
   const { userId } = use(params);
   const [copied, setCopied] = useState(false);
+  const [copiedEmail, setCopiedEmail] = useState(false);
 
   const userRef = useMemoFirebase(() => {
     if (!firestore) return null;
@@ -32,6 +34,14 @@ export default function ProfilePage({ params }: { params: Promise<{ userId: stri
       navigator.clipboard.writeText(profileUser.pin);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  const handleCopyEmail = () => {
+    if (profileUser?.email) {
+      navigator.clipboard.writeText(profileUser.email);
+      setCopiedEmail(true);
+      setTimeout(() => setCopiedEmail(false), 2000);
     }
   };
 
@@ -94,23 +104,24 @@ export default function ProfilePage({ params }: { params: Promise<{ userId: stri
           </Button>
           <div className="flex flex-col items-center text-center">
             <UserAvatar user={profileUser} className="h-24 w-24 mb-4" showStatus={true} />
-            <CardTitle className="text-2xl font-headline">
-              {profileUser.name}
-              {isOwnProfile && <span className="text-muted-foreground ml-2">(yo)</span>}
-            </CardTitle>
-            <CardDescription className="mt-2">
-              {profileUser.status === 'active' ? '🟢 Online' : '⚪ Offline'}
-            </CardDescription>
+            <div className="flex items-center gap-2 justify-center mb-2">
+              <CardTitle className="text-2xl font-headline">
+                {profileUser.name}
+                {isOwnProfile && <span className="text-muted-foreground ml-2">(yo)</span>}
+              </CardTitle>
+              {/* Insignia de admin de plataforma */}
+              {profileUser.role === 'admin' && (
+                <RoleBadge type="platform-admin" size="md" />
+              )}
+            </div>
+            {profileUser.description && (
+              <CardDescription className="mt-2">
+                {profileUser.description}
+              </CardDescription>
+            )}
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          {profileUser.description && (
-            <div>
-              <h3 className="text-sm font-semibold mb-2">Description</h3>
-              <p className="text-sm text-muted-foreground">{profileUser.description}</p>
-            </div>
-          )}
-          
           <div>
             <h3 className="text-sm font-semibold mb-2">PIN Code</h3>
             <div className="flex items-center gap-2">
@@ -135,11 +146,24 @@ export default function ProfilePage({ params }: { params: Promise<{ userId: stri
           {profileUser.email && (
             <div>
               <h3 className="text-sm font-semibold mb-2">Email</h3>
-              <p className="text-sm text-muted-foreground">{profileUser.email}</p>
+              <div className="flex items-center gap-2">
+                <p className="flex-1 text-sm text-muted-foreground">{profileUser.email}</p>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={handleCopyEmail}
+                >
+                  {copiedEmail ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                </Button>
+              </div>
             </div>
           )}
 
-          {!isOwnProfile && (
+          {isOwnProfile ? (
+            <Button className="w-full" onClick={() => router.push(`/dashboard/settings`)}>
+              Ir a mi Perfil
+            </Button>
+          ) : (
             <Button className="w-full" onClick={() => router.push('/dashboard')}>
               Start Chat
             </Button>

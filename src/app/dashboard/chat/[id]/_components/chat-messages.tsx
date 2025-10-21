@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { UserAvatar } from '@/components/user-avatar';
 import { cn } from '@/lib/utils';
-import type { Message, User } from '@/lib/types';
+import type { Message, User, Chat } from '@/lib/types';
 import { format } from 'date-fns';
 import { useUser, useDoc, useFirestore, useMemoFirebase, setDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
 import { doc } from 'firebase/firestore';
@@ -16,25 +16,53 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Textarea } from '@/components/ui/textarea';
+import { RoleBadge } from '@/components/role-badges';
 
 interface MessageItemProps {
   message: Message & { id: string };
   chatId: string;
+  chat?: Chat & { id: string };
 }
 
-function MessageItem({ message, chatId }: MessageItemProps) {
+function MessageItem({ message, chatId, chat }: MessageItemProps) {
   const { user: currentUser } = useUser();
   const firestore = useFirestore();
   const isSelf = message.senderId === currentUser?.uid;
+  const isSystem = message.type === 'system';
   const [isEditing, setIsEditing] = useState(false);
   const [editedContent, setEditedContent] = useState(message.content);
 
   const senderRef = useMemoFirebase(() => {
-    if (!firestore || !message.senderId) return null;
+    if (!firestore || !message.senderId || isSystem) return null;
     return doc(firestore, 'users', message.senderId);
-  }, [firestore, message.senderId]);
+  }, [firestore, message.senderId, isSystem]);
 
   const { data: sender, isLoading: isSenderLoading } = useDoc<User>(senderRef);
+
+  // Determinar los roles del usuario
+  const isGroupCreator = chat?.createdBy === message.senderId;
+  const isGroupAdmin = chat?.adminIds?.includes(message.senderId) && !isGroupCreator;
+  const isPlatformAdmin = sender?.role === 'admin';
+  const isGroup = chat?.type === 'group';
+
+  // Determinar el color del nombre (dorado para creadores y co-creadores)
+  const getNameColor = () => {
+    if (!isGroup) return 'text-primary';
+    if (isGroupCreator) return 'text-amber-500'; // Dorado para creador
+    if (isGroupAdmin) return 'text-blue-500'; // Azul para co-creador
+    return 'text-primary';
+  };
+
+  // Renderizar mensaje del sistema
+  if (isSystem) {
+    return (
+      <div className="flex justify-center my-4">
+        <div className="bg-muted px-4 py-2 rounded-full text-xs text-muted-foreground max-w-md text-center">
+          {message.content}
+        </div>
+      </div>
+    );
+  }
   
   const handleEdit = () => {
     setIsEditing(true);
@@ -117,15 +145,38 @@ function MessageItem({ message, chatId }: MessageItemProps) {
             className={cn(
               'max-w-xs rounded-lg p-3 text-sm shadow-md md:max-w-md',
               {
-                'bg-primary text-primary-foreground': isSelf && !isEditing,
-                'bg-card': !isSelf || isEditing,
+                // Mensajes propios - con fondos especiales si es creador/co-creador
+                'bg-primary text-primary-foreground': isSelf && !isEditing && (!isGroup || (!isGroupCreator && !isGroupAdmin)) && !isPlatformAdmin,
+                'bg-amber-500/30 text-foreground border-2 border-amber-500/50 electric-border-creator': isSelf && !isEditing && isGroup && isGroupCreator,
+                'bg-amber-500/20 text-foreground border border-amber-400/40': isSelf && !isEditing && isGroup && isGroupAdmin,
+                'bg-purple-500/30 text-foreground border-2 border-purple-500/50 electric-border-admin': isSelf && !isEditing && isPlatformAdmin && !isGroup,
+                // Mensajes de otros - tonos sutiles
+                'bg-amber-500/15 border-2 border-amber-500/40 electric-border-creator': !isSelf && isGroup && isGroupCreator,
+                'bg-amber-500/10 border border-amber-500/30': !isSelf && isGroup && isGroupAdmin,
+                'bg-purple-500/15 border-2 border-purple-500/40 electric-border-admin': !isSelf && isPlatformAdmin && !isGroup,
+                'bg-card': (!isSelf || isEditing) && (!isGroup || (!isGroupCreator && !isGroupAdmin)) && !isPlatformAdmin,
               }
             )}
           >
             {!isSelf && (
-              <p className="mb-1 text-xs font-semibold text-primary">
-                {sender.name}
-              </p>
+              <div className="mb-1 flex items-center gap-1.5">
+                <p className={cn("text-xs font-semibold", getNameColor())}>
+                  {sender.name}
+                </p>
+                {/* Insignias de roles */}
+                {isPlatformAdmin && <RoleBadge type="platform-admin" size="sm" />}
+                {isGroup && isGroupCreator && <RoleBadge type="group-creator" size="sm" />}
+                {isGroup && isGroupAdmin && <RoleBadge type="group-admin" size="sm" />}
+              </div>
+            )}
+            {/* Insignias para mensajes propios */}
+            {isSelf && (isPlatformAdmin || (isGroup && (isGroupCreator || isGroupAdmin))) && (
+              <div className="mb-1 flex items-center gap-1.5 justify-end">
+                <p className="text-xs font-semibold text-primary-foreground/90">Tú</p>
+                {isPlatformAdmin && <RoleBadge type="platform-admin" size="sm" />}
+                {isGroup && isGroupCreator && <RoleBadge type="group-creator" size="sm" />}
+                {isGroup && isGroupAdmin && <RoleBadge type="group-admin" size="sm" />}
+              </div>
             )}
             {isEditing ? (
               <div className="space-y-2">
@@ -201,11 +252,13 @@ function MessageItem({ message, chatId }: MessageItemProps) {
 export function ChatMessages({ 
   messages, 
   isLoading, 
-  chatId 
+  chatId,
+  chat
 }: { 
   messages: Message[], 
   isLoading: boolean,
-  chatId: string 
+  chatId: string,
+  chat?: Chat & { id: string }
 }) {
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
@@ -241,6 +294,7 @@ export function ChatMessages({
             key={message.id} 
             message={message as Message & { id: string }} 
             chatId={chatId}
+            chat={chat}
           />
         ))}
       </div>

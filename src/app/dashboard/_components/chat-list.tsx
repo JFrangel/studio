@@ -8,10 +8,11 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
   SidebarGroupAction,
+  useSidebar,
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import { UserAvatar } from '@/components/user-avatar';
-import { useCollection, useFirestore, useUser, useMemoFirebase, setDocumentNonBlocking } from '@/firebase';
+import { useCollection, useFirestore, useUser, useMemoFirebase, setDocumentNonBlocking, useDoc } from '@/firebase';
 import { collection, query, where, doc, getDoc, arrayUnion } from 'firebase/firestore';
 import type { Chat, User } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -27,6 +28,19 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { getAvatarUrl, type GroupAvatarStyle } from '@/lib/avatars';
+import { GroupBadge, RoleBadge } from '@/components/role-badges';
 
 function ChatListItem({ 
   chat, 
@@ -51,6 +65,15 @@ function ChatListItem({
   const firestore = useFirestore();
   const [otherUser, setOtherUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const { setOpenMobile, isMobile } = useSidebar();
+
+  // Obtener el perfil completo del usuario actual desde Firestore
+  const currentUserDocRef = useMemoFirebase(() => {
+    if (!firestore || !currentUser) return null;
+    return doc(firestore, 'users', currentUser.uid);
+  }, [firestore, currentUser]);
+
+  const { data: currentUserProfile } = useDoc<User>(currentUserDocRef);
 
   const isPersonalChat = chat.type === 'private' && chat.participantIds.length === 1 && chat.participantIds[0] === currentUser?.uid;
   const isMuted = chat.mutedBy?.includes(currentUser?.uid || '');
@@ -85,8 +108,8 @@ function ChatListItem({
   const getChatDetails = () => {
     if (isPersonalChat) {
       return {
-        name: currentUser?.displayName || currentUser?.email?.split('@')[0] || 'My Notes',
-        avatarUser: currentUser,
+        name: currentUserProfile?.name || currentUser?.displayName || currentUser?.email?.split('@')[0] || 'My Notes',
+        avatarUser: currentUserProfile, // SOLO usar el perfil de Firestore que tiene avatarStyle y avatarSeed
         isPersonal: true,
         isGroup: false,
         groupImage: null
@@ -121,6 +144,9 @@ function ChatListItem({
     if (isSelectionMode) {
       e.preventDefault();
       onSelect?.(chat.id);
+    } else if (isMobile) {
+      // En móvil, cerramos el sidebar cuando se hace clic en un chat
+      setOpenMobile(false);
     }
   };
 
@@ -153,9 +179,22 @@ function ChatListItem({
           >
             <div className="relative">
               {isGroup ? (
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-xl">
-                  {groupImage}
-                </div>
+                chat.groupAvatarStyle === 'avatar' && chat.groupAvatarSeed ? (
+                  <Avatar className="h-8 w-8">
+                    <AvatarImage 
+                      src={getAvatarUrl(
+                        chat.groupAvatarSeed,
+                        chat.groupAvatarSeed.split('-')[0] as GroupAvatarStyle
+                      )} 
+                      alt={chat.name || 'Group'}
+                    />
+                    <AvatarFallback>{chat.name?.[0] || '👥'}</AvatarFallback>
+                  </Avatar>
+                ) : (
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-xl">
+                    {groupImage}
+                  </div>
+                )
               ) : avatarUser ? (
                 <UserAvatar user={avatarUser as any} className="h-8 w-8" />
               ) : (
@@ -167,9 +206,18 @@ function ChatListItem({
                 <Pin className="absolute -top-1 -right-1 h-3 w-3 text-primary fill-primary" />
               )}
             </div>
-            <span className="flex-1 truncate">
+            <span className="flex-1 truncate flex items-center gap-1">
               {name}
-              {isPersonal && <span className="text-muted-foreground ml-1">(yo)</span>}
+              {isPersonal && (
+                <>
+                  <span className="text-muted-foreground ml-1">(yo)</span>
+                  {/* Insignia de admin si el usuario actual es admin */}
+                  {currentUserProfile?.role === 'admin' && <RoleBadge type="platform-admin" size="sm" />}
+                </>
+              )}
+              {isGroup && <GroupBadge />}
+              {/* Insignia para chats con admins de plataforma */}
+              {!isGroup && otherUser?.role === 'admin' && <RoleBadge type="platform-admin" size="sm" />}
             </span>
           </Link>
         </SidebarMenuButton>
@@ -224,6 +272,9 @@ export function ChatList() {
   const [selectedChats, setSelectedChats] = useState<string[]>([]);
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [filterView, setFilterView] = useState<'all' | 'chats' | 'groups'>('all');
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
+  const [chatToDelete, setChatToDelete] = useState<string | null>(null);
 
   const chatsQuery = useMemoFirebase(() => {
     if (!firestore || !user) return null;
@@ -231,6 +282,46 @@ export function ChatList() {
   }, [firestore, user]);
 
   const { data: allChats, isLoading } = useCollection<Chat>(chatsQuery);
+
+  // Función para generar PIN único de 6 dígitos
+  const generateGroupPin = () => {
+    return Math.floor(100000 + Math.random() * 900000).toString();
+  };
+
+  // Función para generar código de invitación único
+  const generateInviteCode = () => {
+    return Math.random().toString(36).substring(2, 10).toUpperCase();
+  };
+
+  // Migrar grupos existentes que no tienen PIN o inviteCode
+  useEffect(() => {
+    if (!allChats || !firestore || !user) return;
+
+    const migrateGroups = async () => {
+      const groupsToMigrate = allChats.filter(
+        chat => chat.type === 'group' && (!chat.groupPin || !chat.inviteCode)
+      );
+
+      for (const group of groupsToMigrate) {
+        const updates: any = {};
+        
+        if (!group.groupPin) {
+          updates.groupPin = generateGroupPin();
+        }
+        
+        if (!group.inviteCode) {
+          updates.inviteCode = generateInviteCode();
+        }
+
+        if (Object.keys(updates).length > 0) {
+          const chatRef = doc(firestore, 'chats', group.id);
+          await setDocumentNonBlocking(chatRef, updates, { merge: true });
+        }
+      }
+    };
+
+    migrateGroups();
+  }, [allChats, firestore, user]);
 
   // Filtrar chats: separar fijados, activos y archivados
   const { pinnedChats, activeChats, archivedChats } = useMemo(() => {
@@ -311,13 +402,18 @@ export function ChatList() {
   };
 
   const handleDelete = (chatId: string) => {
-    if (!firestore || !user) return;
-    if (confirm('Are you sure you want to delete this chat?')) {
-      const chatRef = doc(firestore, 'chats', chatId);
-      setDocumentNonBlocking(chatRef, {
-        deletedBy: arrayUnion(user.uid)
-      }, { merge: true });
-    }
+    setChatToDelete(chatId);
+    setShowDeleteDialog(true);
+  };
+
+  const confirmDelete = () => {
+    if (!firestore || !user || !chatToDelete) return;
+    const chatRef = doc(firestore, 'chats', chatToDelete);
+    setDocumentNonBlocking(chatRef, {
+      deletedBy: arrayUnion(user.uid)
+    }, { merge: true });
+    setShowDeleteDialog(false);
+    setChatToDelete(null);
   };
 
   const handleBulkArchive = () => {
@@ -327,11 +423,19 @@ export function ChatList() {
   };
 
   const handleBulkDelete = () => {
+    setShowBulkDeleteDialog(true);
+  };
+
+  const confirmBulkDelete = () => {
     if (!firestore || !user) return;
-    if (confirm(`Are you sure you want to delete ${selectedChats.length} chats?`)) {
-      selectedChats.forEach(chatId => handleDelete(chatId));
-      handleCancelSelection();
-    }
+    selectedChats.forEach(chatId => {
+      const chatRef = doc(firestore, 'chats', chatId);
+      setDocumentNonBlocking(chatRef, {
+        deletedBy: arrayUnion(user.uid)
+      }, { merge: true });
+    });
+    setShowBulkDeleteDialog(false);
+    handleCancelSelection();
   };
 
   const handleCreateGroupFromSelected = async () => {
@@ -542,8 +646,8 @@ export function ChatList() {
             </>
           )}
           
-          {/* Active/Archived Chats */}
-          {chatsToShow.map((chat) => (
+          {/* Active/Archived Chats - Solo mostrar chats NO fijados */}
+          {applyViewFilter(showArchived ? archivedChats : activeChats).map((chat) => (
             <ChatListItem 
               key={chat.id} 
               chat={chat} 
@@ -574,6 +678,48 @@ export function ChatList() {
           )}
         </SidebarMenu>
       </SidebarGroup>
+
+      {/* Alert Dialog para eliminar un chat */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent className="w-[95vw] max-w-md sm:w-full">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-base sm:text-lg">¿Eliminar chat?</AlertDialogTitle>
+            <AlertDialogDescription className="text-sm">
+              ¿Estás seguro que deseas eliminar este chat? Solo se eliminará de tu vista.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+            <AlertDialogCancel className="w-full sm:w-auto m-0">Cancelar</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={confirmDelete}
+              className="w-full sm:w-auto bg-destructive hover:bg-destructive/90 m-0"
+            >
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Alert Dialog para eliminar múltiples chats */}
+      <AlertDialog open={showBulkDeleteDialog} onOpenChange={setShowBulkDeleteDialog}>
+        <AlertDialogContent className="w-[95vw] max-w-md sm:w-full">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-base sm:text-lg">¿Eliminar {selectedChats.length} chats?</AlertDialogTitle>
+            <AlertDialogDescription className="text-sm">
+              ¿Estás seguro que deseas eliminar estos {selectedChats.length} chats? Solo se eliminarán de tu vista.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+            <AlertDialogCancel className="w-full sm:w-auto m-0">Cancelar</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={confirmBulkDelete}
+              className="w-full sm:w-auto bg-destructive hover:bg-destructive/90 m-0"
+            >
+              Eliminar todos
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

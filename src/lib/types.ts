@@ -25,6 +25,8 @@ export type Chat = {
   createdBy: string;
   adminIds?: string[]; // Co-creadores/administradores del grupo (incluye al creador)
   groupImage?: string; // URL or emoji for group image
+  groupAvatarStyle?: 'emoji' | 'avatar'; // 'emoji' para emoji, 'avatar' para avatar animado
+  groupAvatarSeed?: string; // Seed para avatar animado de grupo (formato: "style-seed")
   groupPin?: string; // PIN único del grupo para unirse
   isPublic?: boolean; // true = público (se puede buscar), false/undefined = privado (solo por invitación)
   inviteCode?: string; // Código de invitación único para enlaces
@@ -38,7 +40,7 @@ export type Message = {
   id: string;
   senderId: string;
   content: string;
-  type: 'text' | 'image' | 'file';
+  type: 'text' | 'image' | 'file' | 'system'; // Añadido 'system' para mensajes del sistema
   readBy: string[];
   sentAt: string; // ISO String
   edited: boolean;
@@ -46,4 +48,5 @@ export type Message = {
   fileUrl?: string; // URL del archivo en Firebase Storage
   fileName?: string; // Nombre original del archivo
   fileSize?: number; // Tamaño del archivo en bytes
+  systemMessageType?: 'group_created' | 'description_updated' | 'icon_updated' | 'user_joined' | 'user_left'; // Tipo de mensaje del sistema
 };

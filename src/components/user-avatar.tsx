@@ -29,9 +29,18 @@ export function UserAvatar({ user, className, showStatus = true }: UserAvatarPro
   
   // Si el usuario eligió usar avatar animado o no tiene foto
   if (user.avatarStyle === 'avatar' || !user.photo || user.photo.includes('pravatar.cc')) {
-    const seed = user.avatarSeed || generateAvatarSeed(user.id || user.email || 'default');
-    const style = (user.avatarSeed?.split('-')[0] || getDefaultAvatarStyle()) as AvatarStyle;
-    avatarSrc = getAvatarUrl(seed, style);
+    if (user.avatarSeed) {
+      // El avatarSeed viene en formato "style-seed" (ej: "avataaars-preview-123")
+      const seedParts = user.avatarSeed.split('-');
+      const style = seedParts[0] as AvatarStyle;
+      const actualSeed = seedParts.slice(1).join('-'); // El resto es el seed
+      avatarSrc = getAvatarUrl(actualSeed, style);
+    } else {
+      // Fallback si no hay avatarSeed
+      const seed = generateAvatarSeed(user.id || user.email || 'default');
+      const style = getDefaultAvatarStyle();
+      avatarSrc = getAvatarUrl(seed, style);
+    }
   }
     
   return (

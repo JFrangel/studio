@@ -15,9 +15,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { X, Plus, Users, Clock } from 'lucide-react';
+import { X, Plus, Users, Clock, Sparkles } from 'lucide-react';
 import { UserAvatar } from '@/components/user-avatar';
-import type { User, Chat } from '@/lib/types';
+import { GroupAvatarPicker } from '@/components/group-avatar-picker';
+import type { User, Chat, Message } from '@/lib/types';
+import { Avatar, AvatarImage } from '@/components/ui/avatar';
+import { getAvatarUrl, type GroupAvatarStyle } from '@/lib/avatars';
 
 const DEFAULT_GROUP_IMAGES = [
   '👥', '🎉', '💼', '🏠', '🎮', '📚', '🎨', '🏋️', 
@@ -46,6 +49,8 @@ export function CreateGroupDialog({ open, onOpenChange }: CreateGroupDialogProps
   const [groupName, setGroupName] = useState('');
   const [description, setDescription] = useState('');
   const [selectedImage, setSelectedImage] = useState(DEFAULT_GROUP_IMAGES[0]);
+  const [useAnimatedAvatar, setUseAnimatedAvatar] = useState(false);
+  const [selectedAvatarSeed, setSelectedAvatarSeed] = useState<string | null>(null);
   const [isPublic, setIsPublic] = useState(false);
   const [pinInput, setPinInput] = useState('');
   const [participants, setParticipants] = useState<User[]>([]);
@@ -222,26 +227,54 @@ export function CreateGroupDialog({ open, onOpenChange }: CreateGroupDialogProps
         type: 'group',
         participantIds,
         createdAt: now,
+        lastMessageAt: now,
         createdBy: currentUser.uid,
         adminIds: [currentUser.uid], // El creador es el primer admin
-        groupImage: selectedImage,
         groupPin: groupPin, // PIN único del grupo
         inviteCode: generateInviteCode(), // Código de invitación único
         isPublic: isPublic, // Público o privado
       };
+
+      // Configurar avatar del grupo
+      if (useAnimatedAvatar && selectedAvatarSeed) {
+        groupData.groupAvatarStyle = 'avatar';
+        groupData.groupAvatarSeed = selectedAvatarSeed;
+      } else {
+        groupData.groupAvatarStyle = 'emoji';
+        groupData.groupImage = selectedImage;
+      }
 
       // Solo agregar description si tiene contenido
       if (description.trim()) {
         groupData.description = description;
       }
 
-      addDocumentNonBlocking(chatsRef, groupData);
+      // Crear el grupo
+      const chatDocRef = await addDocumentNonBlocking(chatsRef, groupData);
+
+      // Crear mensaje del sistema indicando creación del grupo
+      if (chatDocRef) {
+        const messagesRef = collection(firestore, 'chats', chatDocRef.id, 'messages');
+        const systemMessage: Omit<Message, 'id'> = {
+          senderId: 'system',
+          content: `${currentUser.displayName || currentUser.email} creó el grupo "${groupName}"`,
+          type: 'system',
+          systemMessageType: 'group_created',
+          readBy: [],
+          sentAt: now,
+          edited: false,
+        };
+        
+        await addDocumentNonBlocking(messagesRef, systemMessage);
+      }
 
       // Cerrar diálogo y resetear
       onOpenChange(false);
       setGroupName('');
       setDescription('');
       setSelectedImage(DEFAULT_GROUP_IMAGES[0]);
+      setUseAnimatedAvatar(false);
+      setSelectedAvatarSeed(null);
       setIsPublic(false);
       setParticipants([]);
       setPinInput('');
@@ -256,7 +289,7 @@ export function CreateGroupDialog({ open, onOpenChange }: CreateGroupDialogProps
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto w-[95vw]">
         <DialogHeader>
           <DialogTitle>Create Group</DialogTitle>
           <DialogDescription>
@@ -267,21 +300,65 @@ export function CreateGroupDialog({ open, onOpenChange }: CreateGroupDialogProps
         <div className="space-y-4 py-4">
           {/* Group Image Selection */}
           <div>
-            <Label>Group Image</Label>
-            <div className="grid grid-cols-8 gap-2 mt-2">
-              {DEFAULT_GROUP_IMAGES.map((emoji) => (
-                <button
-                  key={emoji}
-                  type="button"
-                  onClick={() => setSelectedImage(emoji)}
-                  className={`text-3xl p-2 rounded-lg hover:bg-accent transition-colors ${
-                    selectedImage === emoji ? 'bg-accent ring-2 ring-primary' : ''
-                  }`}
-                >
-                  {emoji}
-                </button>
-              ))}
+            <div className="flex items-center justify-between mb-2">
+              <Label>Imagen del Grupo</Label>
+              <button
+                type="button"
+                onClick={() => setUseAnimatedAvatar(!useAnimatedAvatar)}
+                className="text-xs sm:text-sm text-primary hover:underline flex items-center gap-1"
+              >
+                <Sparkles className="h-3 w-3 sm:h-4 sm:w-4" />
+                <span className="hidden sm:inline">
+                  {useAnimatedAvatar ? 'Usar emoji' : 'Usar avatar animado'}
+                </span>
+                <span className="sm:hidden">
+                  {useAnimatedAvatar ? 'Emoji' : 'Avatar'}
+                </span>
+              </button>
             </div>
+
+            {!useAnimatedAvatar ? (
+              <div className="grid grid-cols-6 sm:grid-cols-8 gap-2">
+                {DEFAULT_GROUP_IMAGES.map((emoji) => (
+                  <button
+                    key={emoji}
+                    type="button"
+                    onClick={() => setSelectedImage(emoji)}
+                    className={`text-2xl sm:text-3xl p-2 rounded-lg hover:bg-accent transition-colors ${
+                      selectedImage === emoji ? 'bg-accent ring-2 ring-primary' : ''
+                    }`}
+                  >
+                    {emoji}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="border rounded-lg p-2 sm:p-4 space-y-4">
+                {selectedAvatarSeed && (
+                  <div className="flex items-center gap-3 p-2 sm:p-3 bg-muted rounded-lg">
+                    <Avatar className="h-10 w-10 sm:h-12 sm:w-12">
+                      <AvatarImage 
+                        src={getAvatarUrl(
+                          selectedAvatarSeed,
+                          selectedAvatarSeed.split('-')[0] as GroupAvatarStyle
+                        )} 
+                        alt="Selected avatar"
+                      />
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs sm:text-sm font-medium">Avatar seleccionado</p>
+                      <p className="text-xs text-muted-foreground truncate">
+                        Click abajo para cambiar
+                      </p>
+                    </div>
+                  </div>
+                )}
+                <GroupAvatarPicker 
+                  onSelect={setSelectedAvatarSeed}
+                  currentSeed={selectedAvatarSeed || undefined}
+                />
+              </div>
+            )}
           </div>
 
           {/* Group Name */}

@@ -95,7 +95,12 @@ export default function ChatPage({ params }: { params: Promise<{ id: string }> }
   return (
     <div className="flex h-full flex-col">
       <ChatHeader chat={chat} />
-      <ChatMessages messages={messages || []} isLoading={messagesLoading} chatId={chatId} />
+      <ChatMessages 
+        messages={messages || []} 
+        isLoading={messagesLoading} 
+        chatId={chatId}
+        chat={{ ...chat, id: chatId }}
+      />
       <MessageInput chatId={chatId} />
     </div>
   );

@@ -9,11 +9,13 @@ import type { User } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useRouter } from 'next/navigation';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { useSidebar } from '@/components/ui/sidebar';
 
 export default function UsersPage() {
   const { user: authUser } = useUser();
   const firestore = useFirestore();
   const router = useRouter();
+  const { setOpenMobile, isMobile } = useSidebar();
 
   const userDocRef = useMemoFirebase(() => {
     if (!firestore || !authUser) return null;
@@ -24,6 +26,14 @@ export default function UsersPage() {
 
   // Verificar si el usuario es admin
   const isAdmin = userProfile?.role === 'admin';
+
+  const handleBackToDashboard = () => {
+    if (isMobile) {
+      // En móvil, abrir el sidebar en lugar de navegar
+      setOpenMobile(true);
+    }
+    router.push('/dashboard');
+  };
 
   if (isLoading) {
     return (
@@ -46,7 +56,7 @@ export default function UsersPage() {
     return (
       <main className="flex-1 overflow-y-auto p-4 md:p-6">
         <Button
-          onClick={() => router.push('/dashboard')}
+          onClick={handleBackToDashboard}
           className="mb-4 border"
         >
           <ArrowLeft className="mr-2 h-4 w-4" />
@@ -68,7 +78,7 @@ export default function UsersPage() {
   return (
     <main className="flex-1 overflow-y-auto p-4 md:p-6">
       <Button
-        onClick={() => router.push('/dashboard')}
+        onClick={handleBackToDashboard}
         className="mb-4 border"
       >
         <ArrowLeft className="mr-2 h-4 w-4" />

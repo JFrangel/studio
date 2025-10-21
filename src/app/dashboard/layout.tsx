@@ -34,7 +34,7 @@ export default function DashboardLayout({
   const title = getTitleForPath(pathname);
 
   return (
-    <SidebarProvider>
+    <SidebarProvider defaultOpen={true}>
       <div className="grid h-screen w-full grid-cols-1 md:grid-cols-[auto_1fr] bg-background">
         <Sidebar>
           <SidebarHeader className="p-4">

@@ -85,3 +85,33 @@
     @apply bg-background text-foreground;
   }
 }
+
+@layer utilities {
+  /* Animación de borde para creadores - solo borde sin difuminado */
+  @keyframes electric-pulse {
+    0%, 100% {
+      border-color: rgba(245, 158, 11, 0.6);
+    }
+    50% {
+      border-color: rgba(245, 158, 11, 1);
+    }
+  }
+
+  /* Animación de borde para admins de plataforma - solo borde sin difuminado */
+  @keyframes electric-pulse-purple {
+    0%, 100% {
+      border-color: rgba(168, 85, 247, 0.6);
+    }
+    50% {
+      border-color: rgba(168, 85, 247, 1);
+    }
+  }
+
+  .electric-border-creator {
+    animation: electric-pulse 2s ease-in-out infinite;
+  }
+
+  .electric-border-admin {
+    animation: electric-pulse-purple 2s ease-in-out infinite;
+  }
+}

@@ -34,6 +34,9 @@ export type AvatarStyle =
   | 'shapes'            // Formas abstractas
   | 'thumbs';           // Pulgares arriba
 
+// Estilos específicos para avatares de grupo
+export type GroupAvatarStyle = AvatarStyle;
+
 export const AVATAR_CATEGORIES = {
   female: {
     label: 'Femenino',
@@ -64,6 +67,46 @@ export const AVATAR_CATEGORIES = {
     label: 'Minimalista',
     styles: ['initials', 'icons', 'shapes', 'identicon'] as AvatarStyle[],
     icon: '⚪'
+  }
+};
+
+// Categorías específicas para avatares de grupos
+export const GROUP_AVATAR_CATEGORIES = {
+  teams: {
+    label: 'Equipos',
+    styles: ['personas', 'open-peeps', 'notionists', 'miniavs'] as GroupAvatarStyle[],
+    icon: '👥',
+    description: 'Para grupos de trabajo y equipos'
+  },
+  fun: {
+    label: 'Divertidos',
+    styles: ['fun-emoji', 'croodles', 'big-smile', 'thumbs'] as GroupAvatarStyle[],
+    icon: '🎉',
+    description: 'Para grupos de amigos y diversión'
+  },
+  tech: {
+    label: 'Tech & Robots',
+    styles: ['bottts', 'bottts-neutral', 'pixel-art', 'icons'] as GroupAvatarStyle[],
+    icon: '🤖',
+    description: 'Para grupos de tecnología'
+  },
+  abstract: {
+    label: 'Abstracto',
+    styles: ['shapes', 'identicon', 'pixel-art-neutral'] as GroupAvatarStyle[],
+    icon: '🎨',
+    description: 'Diseños geométricos y abstractos'
+  },
+  creative: {
+    label: 'Creativos',
+    styles: ['croodles', 'adventurer', 'big-ears', 'avataaars'] as GroupAvatarStyle[],
+    icon: '✨',
+    description: 'Para grupos creativos y artísticos'
+  },
+  professional: {
+    label: 'Profesional',
+    styles: ['initials', 'notionists-neutral', 'icons', 'shapes'] as GroupAvatarStyle[],
+    icon: '💼',
+    description: 'Para entornos profesionales'
   }
 };
 
@@ -111,4 +154,26 @@ export function getRandomStyleFromCategory(category: keyof typeof AVATAR_CATEGOR
  */
 export function getDefaultAvatarStyle(): AvatarStyle {
   return 'avataaars'; // Estilo por defecto más popular y neutral
+}
+
+/**
+ * Obtiene el estilo por defecto para grupos
+ */
+export function getDefaultGroupAvatarStyle(): GroupAvatarStyle {
+  return 'personas'; // Estilo por defecto para grupos
+}
+
+/**
+ * Genera un seed único para un grupo basado en su nombre o ID
+ */
+export function generateGroupAvatarSeed(groupId: string): string {
+  return `group-${groupId}`;
+}
+
+/**
+ * Obtiene un estilo aleatorio de una categoría de grupo
+ */
+export function getRandomGroupStyleFromCategory(category: keyof typeof GROUP_AVATAR_CATEGORIES): GroupAvatarStyle {
+  const styles = GROUP_AVATAR_CATEGORIES[category].styles;
+  return styles[Math.floor(Math.random() * styles.length)];
 }
