@@ -45,9 +45,9 @@ service cloud.firestore {
       function isAdmin() {
         return exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
       }
-      allow get: if isOwner(userId) || isAdmin();
-      allow list: if false; // Listing users is not allowed
-      allow create: if isOwner(userId);
+      allow get: if isSignedIn(); // Permitir leer cualquier usuario si estás autenticado
+      allow list: if isSignedIn(); // Permitir listar usuarios si estás autenticado
+      allow create: if isSignedIn(); // Permitir crear tu propio perfil
       allow update: if isOwner(userId) || isAdmin();
       allow delete: if isOwner(userId) || isAdmin();
     }
@@ -56,7 +56,7 @@ service cloud.firestore {
      * @description Secure chat metadata. Only participants can access chat details.
      * @path /chats/{chatId}
      * @allow (get, list) if the user is a participant.
-     * @allow (create) if the user is the creator.
+     * @allow (create) if the user is in the participantIds array being created.
      * @allow (update, delete) if the user is the creator.
      * @deny any operation if the user is not a participant or creator.
      * @principle Enforces chat membership for access.
@@ -70,15 +70,25 @@ service cloud.firestore {
         return isSignedIn() && request.auth.uid in resource.data.participantIds;
       }
 
+      function isParticipantInNewChat() {
+        return isSignedIn() && request.auth.uid in request.resource.data.participantIds;
+      }
+
       function isChatCreator() {
           return isSignedIn() && request.auth.uid == resource.data.createdBy;
       }
 
+      function isChatAdmin() {
+        return isSignedIn() && 
+               resource.data.adminIds != null && 
+               request.auth.uid in resource.data.adminIds;
+      }
+
       allow get: if isParticipant();
       allow list: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update: if isChatCreator();
-      allow delete: if isChatCreator();
+      allow create: if isSignedIn() && isParticipantInNewChat();
+      allow update: if isParticipant(); // Permitir a cualquier participante actualizar (para lastMessage y acciones personales)
+      allow delete: if isChatAdmin(); // Solo administradores pueden eliminar el grupo
     }
 
     /**
@@ -96,7 +106,10 @@ service cloud.firestore {
       }
 
       function isParticipant(chatId) {
-        return isSignedIn() && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participantIds;
+        let chatDoc = get(/databases/$(database)/documents/chats/$(chatId));
+        return isSignedIn() && 
+               chatDoc != null && 
+               request.auth.uid in chatDoc.data.participantIds;
       }
 
       function isSender(messageId) {

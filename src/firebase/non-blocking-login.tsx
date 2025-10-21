@@ -43,6 +43,7 @@ async function setupNewUser(
       photo: user.photoURL || `https://i.pravatar.cc/150?u=${user.uid}`,
       lastLogin: new Date().toISOString(),
       status: 'active',
+      searchable: true, // Por defecto, los usuarios aparecen en búsquedas
     });
 
     // Create a personal chat for the user

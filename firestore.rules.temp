@@ -1,0 +1,110 @@
+/**
+ * REGLAS TEMPORALES PARA PRUEBAS - MÁS PERMISIVAS
+ * COPIAR Y PEGAR EN LA CONSOLA DE FIREBASE
+ * https://console.firebase.google.com/project/studio-2423527268-b13e6/firestore/rules
+ */
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Users
+    match /users/{userId} {
+      function isSignedIn() {
+        return request.auth != null;
+      }
+
+      function isOwner(userId) {
+        return isSignedIn() && request.auth.uid == userId;
+      }
+
+      function isAdmin() {
+        return exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
+      }
+      
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if isSignedIn(); // Más permisivo para pruebas
+      allow create: if isSignedIn(); // Más permisivo para pruebas
+      allow update: if isOwner(userId) || isAdmin();
+      allow delete: if isOwner(userId) || isAdmin();
+    }
+
+    // Chats - MÁS PERMISIVAS
+    match /chats/{chatId} {
+      function isSignedIn() {
+        return request.auth != null;
+      }
+
+      function isParticipant() {
+        return isSignedIn() && request.auth.uid in resource.data.participantIds;
+      }
+
+      function willBeParticipant() {
+        return isSignedIn() && request.auth.uid in request.resource.data.participantIds;
+      }
+
+      function isChatCreator() {
+        return isSignedIn() && request.auth.uid == resource.data.createdBy;
+      }
+
+      allow get: if isParticipant();
+      allow list: if isSignedIn();
+      // Permitir crear si el usuario está en participantIds Y es el creador
+      allow create: if isSignedIn() && 
+                       willBeParticipant() && 
+                       request.auth.uid == request.resource.data.createdBy &&
+                       request.resource.data.keys().hasAll(['createdAt', 'createdBy', 'participantIds', 'type']);
+      allow update: if isChatCreator();
+      allow delete: if isChatCreator();
+    }
+
+    // Messages
+    match /chats/{chatId}/messages/{messageId} {
+      function isSignedIn() {
+        return request.auth != null;
+      }
+
+      function isParticipant(chatId) {
+        return isSignedIn() && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participantIds;
+      }
+
+      function isSender(messageId) {
+        return isSignedIn() && request.auth.uid == resource.data.senderId;
+      }
+
+      allow get: if isParticipant(chatId);
+      allow list: if isParticipant(chatId);
+      allow create: if isParticipant(chatId);
+      allow update: if isSender(messageId) && isParticipant(chatId);
+      allow delete: if isSender(messageId) && isParticipant(chatId);
+    }
+
+    // Notifications
+    match /users/{userId}/notifications/{notificationId} {
+      function isSignedIn() {
+        return request.auth != null;
+      }
+
+      function isOwner(userId) {
+        return isSignedIn() && request.auth.uid == userId;
+      }
+
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId);
+      allow delete: if isOwner(userId);
+    }
+
+    // Admin roles
+    match /roles_admin/{userId} {
+      function isAdmin() {
+        return exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
+      }
+      allow get: if isAdmin();
+      allow list: if false;
+      allow create: if false;
+      allow update: if false;
+      allow delete: if request.auth.uid == userId;
+    }
+  }
+}

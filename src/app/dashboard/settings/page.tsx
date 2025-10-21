@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { UserAvatar } from '@/components/user-avatar';
 import { useUser, useFirestore, setDocumentNonBlocking, useDoc, useMemoFirebase, useAuth } from '@/firebase';
-import { Camera, Copy, LogOut } from 'lucide-react';
+import { Camera, Copy, LogOut, ArrowLeft, Search, Sparkles } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -20,6 +20,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
+import { AvatarPicker } from '@/components/avatar-picker';
+import { generateAvatarSeed, getDefaultAvatarStyle, type AvatarStyle } from '@/lib/avatars';
 import { useState, useEffect } from 'react';
 import { doc } from 'firebase/firestore';
 import type { User } from '@/lib/types';
@@ -44,11 +47,13 @@ export default function SettingsPage() {
 
   const [name, setName] = useState('');
   const [status, setStatus] = useState('active');
+  const [searchable, setSearchable] = useState(true);
 
   useEffect(() => {
     if (userProfile) {
       setName(userProfile.name || '');
       setStatus(userProfile.status || 'active');
+      setSearchable(userProfile.searchable !== false); // Por defecto true
     }
   }, [userProfile]);
 
@@ -57,6 +62,7 @@ export default function SettingsPage() {
     setDocumentNonBlocking(userDocRef, {
       name: name,
       status: status,
+      searchable: searchable,
     }, { merge: true });
     toast({ title: "Profile saved!", description: "Your changes have been updated." });
   };
@@ -116,6 +122,14 @@ export default function SettingsPage() {
   return (
       <main className="flex-1 overflow-y-auto p-4 md:p-6">
         <div className="mx-auto grid max-w-3xl gap-6">
+          <Button
+            variant="outline"
+            className="mb-4"
+            onClick={() => router.push('/dashboard')}
+          >
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to Dashboard
+          </Button>
           <Card>
             <CardHeader>
               <CardTitle className="font-headline">Public Profile</CardTitle>
@@ -165,6 +179,22 @@ export default function SettingsPage() {
                     <SelectItem value="inactive">Inactive</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+              <div className="grid gap-3">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="searchable" className="text-base">Aparecer en búsquedas</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Permite que otros usuarios puedan encontrarte en el buscador
+                    </p>
+                  </div>
+                  <Switch
+                    id="searchable"
+                    checked={searchable}
+                    onCheckedChange={setSearchable}
+                    disabled={isLoading}
+                  />
+                </div>
               </div>
             </CardContent>
             <CardFooter className="border-t px-6 py-4">

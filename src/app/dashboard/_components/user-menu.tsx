@@ -38,6 +38,9 @@ export function UserMenu() {
   };
   
   const isLoading = isUserLoading || isProfileLoading;
+  
+  // Verificar si el usuario es admin
+  const isAdmin = userProfile?.role === 'admin';
 
   if (isLoading || !userProfile) {
     return (
@@ -83,12 +86,14 @@ export function UserMenu() {
             <span>Perfil</span>
           </Link>
         </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Link href="/dashboard/users">
-            <Users className="mr-2 h-4 w-4" />
-            <span>Users</span>
-          </Link>
-        </DropdownMenuItem>
+        {isAdmin && (
+          <DropdownMenuItem asChild>
+            <Link href="/dashboard/users">
+              <Users className="mr-2 h-4 w-4" />
+              <span>Users</span>
+            </Link>
+          </DropdownMenuItem>
+        )}
         <DropdownMenuItem asChild>
           <Link href="/dashboard/settings">
             <Settings className="mr-2 h-4 w-4" />

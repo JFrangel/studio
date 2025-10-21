@@ -1,0 +1,56 @@
+rules_version = '2';
+
+// Firebase Storage Security Rules
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // Helper function to check if user is authenticated
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    // Helper function to check if user is the owner of the file
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+    
+    // Helper function to validate image file types
+    function isImage() {
+      return request.resource.contentType.matches('image/.*');
+    }
+    
+    // Helper function to validate file size (max 10MB)
+    function isValidSize() {
+      return request.resource.size < 10 * 1024 * 1024;
+    }
+    
+    // Chat files (images and documents)
+    match /chats/{chatId}/{fileType}/{fileName} {
+      // Allow read if user is authenticated (they should be a chat participant)
+      allow read: if isSignedIn();
+      
+      // Allow write if user is authenticated and file is valid
+      // The filename format is: {userId}_{timestamp}_{originalName}
+      // We extract the userId from the filename to verify ownership
+      allow write: if isSignedIn() 
+                   && isValidSize()
+                   && fileName.matches('.*' + request.auth.uid + '.*');
+      
+      // Allow delete if user is the owner
+      allow delete: if isSignedIn() 
+                    && fileName.matches('.*' + request.auth.uid + '.*');
+    }
+    
+    // User profile pictures
+    match /users/{userId}/profile/{fileName} {
+      allow read: if isSignedIn();
+      allow write: if isOwner(userId) && isImage() && isValidSize();
+      allow delete: if isOwner(userId);
+    }
+    
+    // Default: deny all other access
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

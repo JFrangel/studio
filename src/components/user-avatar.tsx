@@ -1,6 +1,7 @@
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 import type { User } from '@/lib/types';
+import { getAvatarUrl, generateAvatarSeed, getDefaultAvatarStyle, type AvatarStyle } from '@/lib/avatars';
 
 interface UserAvatarProps {
   user: Partial<User>;
@@ -22,11 +23,21 @@ export function UserAvatar({ user, className, showStatus = true }: UserAvatarPro
       .map((n) => n[0])
       .join('')
     : '??';
+  
+  // Determinar qué imagen usar
+  let avatarSrc = user.photo;
+  
+  // Si el usuario eligió usar avatar animado o no tiene foto
+  if (user.avatarStyle === 'avatar' || !user.photo || user.photo.includes('pravatar.cc')) {
+    const seed = user.avatarSeed || generateAvatarSeed(user.id || user.email || 'default');
+    const style = (user.avatarSeed?.split('-')[0] || getDefaultAvatarStyle()) as AvatarStyle;
+    avatarSrc = getAvatarUrl(seed, style);
+  }
     
   return (
     <div className="relative">
       <Avatar className={cn('h-10 w-10', className)}>
-        <AvatarImage src={user.photo} alt={user.name} data-ai-hint="person portrait" />
+        <AvatarImage src={avatarSrc} alt={user.name} data-ai-hint="person portrait" />
         <AvatarFallback>{fallback}</AvatarFallback>
       </Avatar>
       {showStatus && user.status && (
