@@ -16,6 +16,7 @@ import {
   addDoc,
   collection,
 } from 'firebase/firestore';
+import { generateAvatarSeed, getDefaultAvatarStyle } from '@/lib/avatars';
 
 type AuthCallback = (error: any) => void;
 
@@ -34,13 +35,21 @@ async function setupNewUser(
   if (!docSnap.exists()) {
     // New user, create profile document
     const userPin = generatePin();
+    const seed = generateAvatarSeed(user.uid);
+    const defaultStyle = getDefaultAvatarStyle();
+    
+    // Si el usuario tiene foto de Google, usarla por defecto
+    const useGooglePhoto = user.photoURL != null;
+    
     await setDoc(userDocRef, {
       id: user.uid,
       name: customName || user.displayName, // Use provided name or Google display name
       email: user.email,
       pin: userPin,
       role: 'user',
-      photo: user.photoURL || `https://i.pravatar.cc/150?u=${user.uid}`,
+      photo: user.photoURL || `https://api.dicebear.com/7.x/${defaultStyle}/svg?seed=${seed}`,
+      avatarStyle: useGooglePhoto ? 'photo' : 'avatar', // Si tiene foto de Google, usar foto
+      avatarSeed: `${defaultStyle}-${seed}`, // Guardar el seed para cambios futuros
       lastLogin: new Date().toISOString(),
       status: 'active',
       searchable: true, // Por defecto, los usuarios aparecen en búsquedas

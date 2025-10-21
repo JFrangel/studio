@@ -48,6 +48,7 @@ export default function SettingsPage() {
   const [name, setName] = useState('');
   const [status, setStatus] = useState('active');
   const [searchable, setSearchable] = useState(true);
+  const [isAvatarPickerOpen, setIsAvatarPickerOpen] = useState(false);
 
   useEffect(() => {
     if (userProfile) {
@@ -65,6 +66,30 @@ export default function SettingsPage() {
       searchable: searchable,
     }, { merge: true });
     toast({ title: "Profile saved!", description: "Your changes have been updated." });
+  };
+  
+  const handleAvatarSelect = (seed: string, style: AvatarStyle) => {
+    if (!userDocRef) return;
+    setDocumentNonBlocking(userDocRef, {
+      avatarStyle: 'avatar',
+      avatarSeed: seed,
+    }, { merge: true });
+    toast({ 
+      title: "Avatar actualizado!", 
+      description: "Tu nuevo avatar se ha guardado correctamente." 
+    });
+  };
+  
+  const handleUseGooglePhoto = () => {
+    if (!userDocRef || !authUser?.photoURL) return;
+    setDocumentNonBlocking(userDocRef, {
+      avatarStyle: 'photo',
+      photo: authUser.photoURL,
+    }, { merge: true });
+    toast({ 
+      title: "Foto actualizada!", 
+      description: "Ahora usas tu foto de Google." 
+    });
   };
   
   const handleCopyPin = () => {
@@ -138,22 +163,43 @@ export default function SettingsPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="flex items-center gap-4">
-                <div className="relative">
-                  <UserAvatar user={userProfile} className="h-20 w-20" />
-                  <Button
-                    size="icon"
-                    variant="outline"
-                    className="absolute bottom-0 right-0 h-8 w-8 rounded-full"
-                  >
-                    <Camera className="h-4 w-4" />
-                    <span className="sr-only">Change photo</span>
-                  </Button>
+              {/* Avatar Section */}
+              <div className="space-y-4">
+                <div className="flex items-start gap-4">
+                  <div className="relative">
+                    <UserAvatar user={userProfile} className="h-20 w-20" />
+                  </div>
+                  <div className="flex-1 space-y-2">
+                    <Label>Avatar</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Elige un avatar animado o usa tu foto de Google
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        onClick={() => setIsAvatarPickerOpen(true)}
+                        className="border"
+                      >
+                        <Sparkles className="mr-2 h-4 w-4" />
+                        Elegir Avatar Animado
+                      </Button>
+                      {authUser?.photoURL && (
+                        <Button
+                          onClick={handleUseGooglePhoto}
+                          className="border"
+                        >
+                          <Camera className="mr-2 h-4 w-4" />
+                          Usar Foto de Google
+                        </Button>
+                      )}
+                    </div>
+                  </div>
                 </div>
-                <div className="grid flex-1 gap-2">
-                  <Label htmlFor="name">Full Name</Label>
-                  <Input id="name" value={name} onChange={(e) => setName(e.target.value)} disabled={isLoading} />
-                </div>
+              </div>
+
+              {/* Name Section */}
+              <div className="grid gap-2">
+                <Label htmlFor="name">Full Name</Label>
+                <Input id="name" value={name} onChange={(e) => setName(e.target.value)} disabled={isLoading} />
               </div>
                <div className="grid gap-2">
                   <Label htmlFor="pin">Your User PIN</Label>
@@ -252,6 +298,14 @@ export default function SettingsPage() {
           </Card>
 
         </div>
+
+        {/* Avatar Picker Dialog */}
+        <AvatarPicker
+          open={isAvatarPickerOpen}
+          onOpenChange={setIsAvatarPickerOpen}
+          currentSeed={userProfile?.avatarSeed || generateAvatarSeed(userProfile?.id || '')}
+          onSelect={handleAvatarSelect}
+        />
       </main>
   );
 }
