@@ -1,29 +1,66 @@
 'use client';
 import {
-  Auth, // Import Auth type for type hinting
+  Auth,
   signInAnonymously,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
-  // Assume getAuth and app are initialized elsewhere
+  signInWithPopup,
+  GoogleAuthProvider,
+  UserCredential,
 } from 'firebase/auth';
 
+type AuthCallback = (error: any) => void;
+
 /** Initiate anonymous sign-in (non-blocking). */
-export function initiateAnonymousSignIn(authInstance: Auth): void {
-  // CRITICAL: Call signInAnonymously directly. Do NOT use 'await signInAnonymously(...)'.
-  signInAnonymously(authInstance);
-  // Code continues immediately. Auth state change is handled by onAuthStateChanged listener.
+export function initiateAnonymousSignIn(
+  authInstance: Auth,
+  callback?: AuthCallback
+): void {
+  signInAnonymously(authInstance).catch((error) => {
+    callback?.(error);
+  });
 }
 
 /** Initiate email/password sign-up (non-blocking). */
-export function initiateEmailSignUp(authInstance: Auth, email: string, password: string): void {
-  // CRITICAL: Call createUserWithEmailAndPassword directly. Do NOT use 'await createUserWithEmailAndPassword(...)'.
-  createUserWithEmailAndPassword(authInstance, email, password);
-  // Code continues immediately. Auth state change is handled by onAuthStateChanged listener.
+export function initiateEmailSignUp(
+  authInstance: Auth,
+  email: string,
+  password: string,
+  callback?: AuthCallback
+): void {
+  createUserWithEmailAndPassword(authInstance, email, password).catch(
+    (error) => {
+      callback?.(error);
+    }
+  );
 }
 
 /** Initiate email/password sign-in (non-blocking). */
-export function initiateEmailSignIn(authInstance: Auth, email: string, password: string): void {
-  // CRITICAL: Call signInWithEmailAndPassword directly. Do NOT use 'await signInWithEmailAndPassword(...)'.
-  signInWithEmailAndPassword(authInstance, email, password);
-  // Code continues immediately. Auth state change is handled by onAuthStateChanged listener.
+export function initiateEmailSignIn(
+  authInstance: Auth,
+  email: string,
+  password: string,
+  callback?: AuthCallback
+): void {
+  signInWithEmailAndPassword(authInstance, email, password).catch((error) => {
+    callback?.(error);
+  });
+}
+
+/** Initiate Google Sign-In (non-blocking). */
+export function initiateGoogleSignIn(
+  authInstance: Auth,
+  callback?: AuthCallback
+): void {
+  const provider = new GoogleAuthProvider();
+  signInWithPopup(authInstance, provider).catch((error) => {
+    // Handle Errors here.
+    const errorCode = error.code;
+    const errorMessage = error.message;
+    // The email of the user's account used.
+    const email = error.customData?.email;
+    // The AuthCredential type that was used.
+    const credential = GoogleAuthProvider.credentialFromError(error);
+    callback?.(error);
+  });
 }
