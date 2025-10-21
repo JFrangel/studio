@@ -9,6 +9,7 @@ import {
 import { Logo } from '@/components/logo';
 import { ChatList } from './_components/chat-list';
 import { UserMenu } from './_components/user-menu';
+import { MainHeader } from './_components/main-header';
 
 export default function DashboardLayout({
   children,
@@ -17,7 +18,7 @@ export default function DashboardLayout({
 }) {
   return (
     <SidebarProvider>
-      <div className="bg-background">
+      <div className="grid h-screen w-full grid-cols-1 md:grid-cols-[auto_1fr] bg-background">
         <Sidebar>
           <SidebarHeader className="p-4">
             <Logo />
@@ -29,7 +30,10 @@ export default function DashboardLayout({
             <UserMenu />
           </SidebarFooter>
         </Sidebar>
-        <SidebarInset>{children}</SidebarInset>
+        <div className="flex flex-col">
+          <MainHeader title="Dashboard" />
+          <main className="flex-1 overflow-auto">{children}</main>
+        </div>
       </div>
     </SidebarProvider>
   );

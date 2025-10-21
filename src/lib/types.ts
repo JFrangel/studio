@@ -1,32 +1,30 @@
-import { Timestamp } from "firebase/firestore";
-
 export type User = {
   id: string;
   nombre: string;
   email: string;
   rol: 'admin' | 'usuario' | 'moderador';
   foto: string;
-  ultimoLogin: string;
+  ultimoLogin: string; // ISO String
   estado: 'activo' | 'inactivo' | 'ocupado' | 'ausente';
 };
 
 export type Chat = {
   id: string;
-  nombre?: string;
+  nombre?: string; // For group chats
   tipo: 'privado' | 'grupal';
-  participantes: string[];
-  creadoEn: string; // Should be ISO string
+  participantIds: string[];
+  creadoEn: string; // ISO string
   ultimoMensaje?: string;
-  ultimoMensajeEn?: string; // Should be ISO string
+  ultimoMensajeEn?: string; // ISO string
   creadoPor: string;
 };
 
 export type Message = {
   id: string;
-  remitenteId: string;
-  contenido: string;
-  tipo: 'texto' | 'imagen';
-  leidoPor: string[];
-  enviadoEn: string; // ISO String, will be converted from Timestamp
-  editado: boolean;
+  senderId: string;
+  content: string;
+  type: 'texto' | 'imagen';
+  readBy: string[];
+  sentAt: string; // ISO String
+  edited: boolean;
 };

@@ -6,6 +6,7 @@ import { MessageInput } from './_components/message-input';
 import { notFound } from 'next/navigation';
 import { doc, collection, query, orderBy } from 'firebase/firestore';
 import type { Chat, Message } from '@/lib/types';
+import { use } from 'react';
 
 export default function ChatPage({ params }: { params: { id: string } }) {
   const firestore = useFirestore();
@@ -19,13 +20,13 @@ export default function ChatPage({ params }: { params: { id: string } }) {
 
   const messagesQuery = useMemoFirebase(() => {
     if (!firestore || !chatId) return null;
-    return query(collection(firestore, 'chats', chatId, 'messages'), orderBy('enviadoEn', 'asc'));
+    return query(collection(firestore, 'chats', chatId, 'messages'), orderBy('sentAt', 'asc'));
   }, [firestore, chatId]);
 
   const { data: messages, isLoading: areMessagesLoading } = useCollection<Message>(messagesQuery);
 
   if (isChatLoading) {
-    return <div className="flex h-screen items-center justify-center">Loading chat...</div>;
+    return <div className="flex h-full flex-1 items-center justify-center">Loading chat...</div>;
   }
 
   if (!chat) {
@@ -33,7 +34,7 @@ export default function ChatPage({ params }: { params: { id: string } }) {
   }
 
   return (
-    <div className="flex h-screen flex-col">
+    <div className="flex h-[calc(100vh_-_theme(spacing.16))] flex-col">
       <ChatHeader chat={chat} />
       <ChatMessages messages={messages || []} isLoading={areMessagesLoading} />
       <MessageInput chatId={chatId} />

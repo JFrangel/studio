@@ -11,12 +11,12 @@ import { Skeleton } from '@/components/ui/skeleton';
 function MessageItem({ message }: { message: Message & { id: string } }) {
   const { user: currentUser } = useUser();
   const firestore = useFirestore();
-  const isSelf = message.remitenteId === currentUser?.uid;
+  const isSelf = message.senderId === currentUser?.uid;
 
   const senderQuery = useMemoFirebase(() => {
     if (!firestore) return null;
-    return query(collection(firestore, 'users'), where('id', '==', message.remitenteId));
-  }, [firestore, message.remitenteId]);
+    return query(collection(firestore, 'users'), where('id', '==', message.senderId));
+  }, [firestore, message.senderId]);
 
   const { data: senders } = useCollection<User>(senderQuery);
   const sender = senders?.[0];
@@ -26,8 +26,8 @@ function MessageItem({ message }: { message: Message & { id: string } }) {
        <div className={cn('flex items-start gap-3', { 'flex-row-reverse': isSelf })}>
           <Skeleton className="h-10 w-10 rounded-full" />
           <div className={cn('flex flex-col gap-1', { 'items-end': isSelf })}>
-             <Skeleton className="h-16 w-48" />
-             <Skeleton className="h-4 w-20" />
+             <Skeleton className="h-16 w-48 rounded-lg" />
+             <Skeleton className="h-4 w-20 mt-1" />
           </div>
        </div>
     );
@@ -60,11 +60,11 @@ function MessageItem({ message }: { message: Message & { id: string } }) {
               {sender.nombre}
             </p>
           )}
-          <p className="whitespace-pre-wrap">{message.contenido}</p>
+          <p className="whitespace-pre-wrap">{message.content}</p>
         </div>
         <div className="text-xs text-muted-foreground">
-          {message.enviadoEn ? format(new Date(message.enviadoEn), 'p') : ''}
-          {message.editado && <span> (edited)</span>}
+          {message.sentAt ? format(new Date(message.sentAt), 'p') : ''}
+          {message.edited && <span> (edited)</span>}
         </div>
       </div>
     </div>
@@ -89,15 +89,15 @@ export function ChatMessages({ messages, isLoading }: { messages: Message[], isL
             <div className="flex items-start gap-3">
               <Skeleton className="h-10 w-10 rounded-full" />
               <div className="flex flex-col gap-1">
-                <Skeleton className="h-16 w-48" />
-                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-16 w-48 rounded-lg" />
+                <Skeleton className="h-4 w-20 mt-1" />
               </div>
             </div>
             <div className="flex items-start gap-3 flex-row-reverse">
               <Skeleton className="h-10 w-10 rounded-full" />
               <div className="flex flex-col gap-1 items-end">
-                <Skeleton className="h-16 w-48" />
-                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-16 w-48 rounded-lg" />
+                <Skeleton className="h-4 w-20 mt-1" />
               </div>
             </div>
           </>

@@ -12,8 +12,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Logo } from '@/components/logo';
-import { useState } from 'react';
-import { useAuth, useFirestore, setDocumentNonBlocking } from '@/firebase';
+import { useState, useEffect } from 'react';
+import { useAuth, useFirestore, setDocumentNonBlocking, useUser } from '@/firebase';
 import { initiateEmailSignUp } from '@/firebase/non-blocking-login';
 import { useRouter } from 'next/navigation';
 import { doc } from 'firebase/firestore';
@@ -24,26 +24,33 @@ export default function RegisterPage() {
   const [password, setPassword] = useState('');
   const auth = useAuth();
   const firestore = useFirestore();
+  const { user } = useUser();
   const router = useRouter();
 
   const handleRegister = async () => {
-    try {
-      // This will create the user but the sign-in state is handled by the auth listener
-      initiateEmailSignUp(auth, email, password);
+    // Initiate sign up, but don't wait for it to complete.
+    // The onAuthStateChanged listener will handle the result.
+    initiateEmailSignUp(auth, email, password);
+    // Don't redirect here. Let the useEffect handle it.
+  };
 
-      // We can't get the user immediately, so we'll have to rely on auth listeners
-      // to eventually create the user document in firestore.
-      // For now, we redirect. A more robust solution would handle user doc creation
-      // after successful sign-in via the listener.
-      
-      // A simple approach is to create the user doc right away, but we don't have the UID yet.
-      // A better approach for another time would be to use a listener.
+  useEffect(() => {
+    if (user && firestore && name) {
+      // User is signed in, create their profile document
+      const userDocRef = doc(firestore, 'users', user.uid);
+      setDocumentNonBlocking(userDocRef, {
+        id: user.uid,
+        nombre: name,
+        email: user.email,
+        rol: 'usuario',
+        foto: `https://picsum.photos/seed/${user.uid}/200/200`,
+        ultimoLogin: new Date().toISOString(),
+        estado: 'activo',
+      }, {}); // Use empty options for creation
       
       router.push('/dashboard');
-    } catch (error) {
-      console.error("Registration failed", error);
     }
-  };
+  }, [user, firestore, name, router]);
 
 
   return (
