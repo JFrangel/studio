@@ -18,9 +18,9 @@ function MessageItem({ message }: { message: Message & { id: string } }) {
     return doc(firestore, 'users', message.senderId);
   }, [firestore, message.senderId]);
 
-  const { data: sender } = useDoc<User>(senderRef);
+  const { data: sender, isLoading: isSenderLoading } = useDoc<User>(senderRef);
   
-  if (!sender) {
+  if (isSenderLoading || !sender) {
     return (
        <div className={cn('flex items-start gap-3', { 'flex-row-reverse': isSelf })}>
           <Skeleton className="h-10 w-10 rounded-full" />

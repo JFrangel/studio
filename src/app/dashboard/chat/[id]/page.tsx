@@ -10,12 +10,13 @@ import { use } from 'react';
 
 export default function ChatPage({ params }: { params: { id: string } }) {
   const firestore = useFirestore();
-  const chatId = params.id;
+  const chatId = use(Promise.resolve(params.id));
 
   const chatRef = useMemoFirebase(() => {
     if (!firestore || !chatId) return null;
     return doc(firestore, 'chats', chatId);
   }, [firestore, chatId]);
+  
   const { data: chat, isLoading: isChatLoading } = useDoc<Chat>(chatRef);
 
   const messagesQuery = useMemoFirebase(() => {
@@ -25,19 +26,21 @@ export default function ChatPage({ params }: { params: { id: string } }) {
 
   const { data: messages, isLoading: areMessagesLoading } = useCollection<Message>(messagesQuery);
 
-  if (isChatLoading) {
-    return <div className="flex h-full flex-1 items-center justify-center">Loading chat...</div>;
-  }
-
-  if (!chat) {
+  if (!isChatLoading && !chat) {
     notFound();
   }
 
   return (
-    <div className="flex h-[calc(100vh_-_theme(spacing.16))] flex-col">
-      <ChatHeader chat={chat} />
-      <ChatMessages messages={messages || []} isLoading={areMessagesLoading} />
-      <MessageInput chatId={chatId} />
+    <div className="flex h-full flex-col">
+       {isChatLoading ? (
+         <div className="flex h-full flex-1 items-center justify-center">Loading chat...</div>
+       ) : chat ? (
+        <>
+          <ChatHeader chat={chat} />
+          <ChatMessages messages={messages || []} isLoading={areMessagesLoading} />
+          <MessageInput chatId={chatId} />
+        </>
+      ) : null}
     </div>
   );
 }

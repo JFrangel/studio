@@ -14,22 +14,24 @@ export function ChatHeader({ chat }: { chat: Chat & {id: string} }) {
   
   const usersQuery = useMemoFirebase(() => {
     if (!firestore || participantIds.length === 0) return null;
-    // Use documentId() which is equivalent to FieldPath.documentId()
     return query(collection(firestore, 'users'), where(documentId(), 'in', participantIds));
-  }, [firestore, participantIds.join(',')]);
+  }, [firestore, participantIds.join(',')]); // Stable dependency
 
   const { data: participantUsers, isLoading: areParticipantsLoading } = useCollection<User>(usersQuery);
 
   const getChatDetails = () => {
-    if (chat.type === 'private') {
-       if (participantIds.length === 0) { // This is the personal "My Notes" chat
-        return {
-          name: chat.name || 'My Notes',
-          description: 'Your personal space for notes',
-          userForAvatar: null,
-          isPersonal: true
-        }
+    // Personal "My Notes" chat
+    if (chat.type === 'private' && chat.participantIds.length === 1 && chat.participantIds[0] === currentUser?.uid) {
+      return {
+        name: chat.name || 'My Notes',
+        description: 'Your personal space for notes',
+        userForAvatar: null,
+        isPersonal: true
       }
+    }
+    
+    // Private 1-on-1 chat
+    if (chat.type === 'private') {
       const otherUser = participantUsers?.[0];
       return {
         name: areParticipantsLoading ? 'Loading...' : otherUser?.name || 'Private Chat',
@@ -38,6 +40,8 @@ export function ChatHeader({ chat }: { chat: Chat & {id: string} }) {
         isPersonal: false,
       };
     }
+    
+    // Group chat
     return {
       name: chat.name || 'Group Chat',
       description: `${chat.participantIds.length} members`,
@@ -53,8 +57,8 @@ export function ChatHeader({ chat }: { chat: Chat & {id: string} }) {
       <div className="flex items-center gap-3">
          {isPersonal ? (
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted text-xl font-semibold">📝</div>
-        ) : chat.type === 'private' ? (
-           userForAvatar && <UserAvatar user={userForAvatar} />
+        ) : userForAvatar ? (
+           <UserAvatar user={userForAvatar} />
         ) : (
           <div className="relative flex -space-x-2">
             {participantUsers?.slice(0, 3).map(user => (

@@ -47,7 +47,7 @@ export default function DashboardLayout({
             <UserMenu />
           </SidebarFooter>
         </Sidebar>
-        <div className="flex flex-col h-screen">
+        <div className="flex flex-col h-screen overflow-hidden">
           <MainHeader title={title} />
           <main className="flex-1 overflow-auto">{children}</main>
         </div>

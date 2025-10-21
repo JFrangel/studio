@@ -51,10 +51,10 @@ export default function RegisterPage() {
         email: user.email,
         pin: userPin,
         role: 'user',
-        photo: user.photoURL || `https://picsum.photos/seed/${user.uid}/200/200`,
+        photo: user.photoURL || `https://i.pravatar.cc/150?u=${user.uid}`,
         lastLogin: new Date().toISOString(),
         status: 'active',
-      }, {}); 
+      }, { merge: true }); 
 
       // Create a personal chat for the user
       const chatsColRef = collection(firestore, 'chats');
@@ -112,5 +112,3 @@ export default function RegisterPage() {
     </main>
   );
 }
-
-    

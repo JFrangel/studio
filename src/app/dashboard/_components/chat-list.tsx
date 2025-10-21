@@ -27,6 +27,7 @@ function ChatListItem({ chat }: { chat: Chat & { id: string } }) {
 
   useEffect(() => {
     const fetchOtherUser = async () => {
+      setIsLoading(true);
       if (!firestore || !currentUser || chat.type !== 'private' || isPersonalChat) {
         setIsLoading(false);
         return;
@@ -38,7 +39,7 @@ function ChatListItem({ chat }: { chat: Chat & { id: string } }) {
           const userDocRef = doc(firestore, 'users', otherParticipantId);
           const userDocSnap = await getDoc(userDocRef);
           if (userDocSnap.exists()) {
-            setOtherUser(userDocSnap.data() as User);
+            setOtherUser({ id: userDocSnap.id, ...userDocSnap.data() } as User);
           }
         } catch (error) {
           console.error("Error fetching other user:", error);

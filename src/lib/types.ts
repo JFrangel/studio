@@ -29,5 +29,3 @@ export type Message = {
   sentAt: string; // ISO String
   edited: boolean;
 };
-
-    
