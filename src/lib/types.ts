@@ -1,11 +1,12 @@
 export type User = {
   id: string;
-  nombre: string;
+  name: string;
   email: string;
-  rol: 'admin' | 'usuario' | 'moderador';
-  foto: string;
-  ultimoLogin: string; // ISO String
-  estado: 'activo' | 'inactivo' | 'ocupado' | 'ausente';
+  pin: string;
+  role: 'admin' | 'user' | 'moderator';
+  photo: string;
+  lastLogin: string; // ISO String
+  status: 'active' | 'inactive' | 'busy' | 'away';
 };
 
 export type Chat = {
@@ -28,3 +29,5 @@ export type Message = {
   sentAt: string; // ISO String
   edited: boolean;
 };
+
+    

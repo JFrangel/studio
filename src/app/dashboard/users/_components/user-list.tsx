@@ -24,17 +24,17 @@ import { collection } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card } from '@/components/ui/card';
 
-const roleVariantMap: { [key in User['rol']]: 'default' | 'secondary' | 'outline' } = {
+const roleVariantMap: { [key in User['role']]: 'default' | 'secondary' | 'outline' } = {
   admin: 'default',
-  moderador: 'secondary',
-  usuario: 'outline',
+  moderator: 'secondary',
+  user: 'outline',
 };
 
-const statusClasses: { [key in User['estado']]: string } = {
-  activo: 'bg-green-500',
-  ausente: 'bg-yellow-500',
-  ocupado: 'bg-red-500',
-  inactivo: 'bg-gray-400',
+const statusClasses: { [key in User['status']]: string } = {
+  active: 'bg-green-500',
+  away: 'bg-yellow-500',
+  busy: 'bg-red-500',
+  inactive: 'bg-gray-400',
 };
 
 export function UserList() {
@@ -118,24 +118,24 @@ export function UserList() {
                 <div className="flex items-center gap-3">
                   <UserAvatar user={user} className="h-10 w-10" />
                   <div className="font-medium">
-                    <p>{user.nombre}</p>
+                    <p>{user.name}</p>
                     <p className="text-sm text-muted-foreground md:hidden">{user.email}</p>
                   </div>
                 </div>
               </TableCell>
               <TableCell className="hidden sm:table-cell">
                  <div className="flex items-center gap-2">
-                    <span className={`h-2.5 w-2.5 rounded-full ${statusClasses[user.estado]}`} />
-                    <span className="capitalize">{user.estado}</span>
+                    <span className={`h-2.5 w-2.5 rounded-full ${statusClasses[user.status]}`} />
+                    <span className="capitalize">{user.status}</span>
                 </div>
               </TableCell>
               <TableCell className="hidden md:table-cell">
-                <Badge variant={roleVariantMap[user.rol]} className="capitalize">
-                  {user.rol}
+                <Badge variant={roleVariantMap[user.role]} className="capitalize">
+                  {user.role}
                 </Badge>
               </TableCell>
               <TableCell className="hidden lg:table-cell">
-                {formatDistanceToNow(new Date(user.ultimoLogin), { addSuffix: true })}
+                {formatDistanceToNow(new Date(user.lastLogin), { addSuffix: true })}
               </TableCell>
               <TableCell>
                 <DropdownMenu>
@@ -158,3 +158,5 @@ export function UserList() {
     </Card>
   );
 }
+
+    

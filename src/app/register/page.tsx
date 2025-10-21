@@ -18,6 +18,10 @@ import { initiateEmailSignUp } from '@/firebase/non-blocking-login';
 import { useRouter } from 'next/navigation';
 import { doc, collection } from 'firebase/firestore';
 
+function generatePin() {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+}
+
 export default function RegisterPage() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -39,15 +43,18 @@ export default function RegisterPage() {
     if (user && firestore && name) {
       // User is signed in, create their profile document
       const userDocRef = doc(firestore, 'users', user.uid);
+      const userPin = generatePin();
+      
       setDocumentNonBlocking(userDocRef, {
         id: user.uid,
-        nombre: name,
+        name: name,
         email: user.email,
-        rol: 'usuario',
-        foto: `https://picsum.photos/seed/${user.uid}/200/200`,
-        ultimoLogin: new Date().toISOString(),
-        estado: 'activo',
-      }, {}); // Use empty options for creation
+        pin: userPin,
+        role: 'user',
+        photo: user.photoURL || `https://picsum.photos/seed/${user.uid}/200/200`,
+        lastLogin: new Date().toISOString(),
+        status: 'active',
+      }, {}); 
 
       // Create a personal chat for the user
       const chatsColRef = collection(firestore, 'chats');
@@ -105,3 +112,5 @@ export default function RegisterPage() {
     </main>
   );
 }
+
+    

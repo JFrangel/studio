@@ -19,6 +19,10 @@
           "description": "The user's email address.",
           "format": "email"
         },
+        "pin": {
+          "type": "string",
+          "description": "A unique, short identifier for the user to be added by others."
+        },
         "role": {
           "type": "string",
           "description": "The user's role (e.g., admin, user, moderator)."
@@ -42,6 +46,7 @@
         "id",
         "name",
         "email",
+        "pin",
         "role",
         "status"
       ]
@@ -288,3 +293,4 @@
     "reasoning": "The Firestore data structure is designed to support the ChatStatus application's features, focusing on secure, scalable, and maintainable data access. The structure incorporates denormalization to ensure Authorization Independence, which is critical for security rules and atomic operations. Segregation is applied to maintain a homogeneous security posture across collections, and Access Modeling standardizes authorization patterns using path-based ownership and membership maps. These strategies ensures clarity and predictability within the database, making security rules robust and debuggable.\n\n*   **/users/{userId}**: Stores user profiles. Path-based ownership ensures only the user or an admin can access their data. Supports QAPs because listing users is restricted to admins only, while users can only access their own profile.\n*   **/chats/{chatId}**: Stores chat metadata.  Includes a `participantIds` array representing the members of the chat. This supports QAPs by ensuring only participants can list or access chat details.\n*   **/chats/{chatId}/messages/{messageId}**: Stores messages within a chat.  Path-based hierarchy maintains the Chat 1:N Message relationship. Only chat participants can list or access messages.\n*   **/users/{userId}/notifications/{notificationId}**: Stores notifications for a user. Path-based ownership ensures only the user can access their notifications. Supports QAPs because listing notifications is restricted to the user themselves.\n*   **/roles_admin/{userId}**: Existence of a document in this collection grants admin privileges to the corresponding user. Supports QAPs by restricting access to this collection to authorized admin users."
   }
 }
+    

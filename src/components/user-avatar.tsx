@@ -3,36 +3,40 @@ import { cn } from '@/lib/utils';
 import type { User } from '@/lib/types';
 
 interface UserAvatarProps {
-  user: User;
+  user: Partial<User>;
   className?: string;
   showStatus?: boolean;
 }
 
-const statusColorMap = {
-  activo: 'bg-green-500',
-  ausente: 'bg-yellow-500',
-  ocupado: 'bg-red-500',
-  inactivo: 'bg-gray-400',
+const statusColorMap: { [key: string]: string } = {
+  active: 'bg-green-500',
+  away: 'bg-yellow-500',
+  busy: 'bg-red-500',
+  inactive: 'bg-gray-400',
 };
 
 export function UserAvatar({ user, className, showStatus = true }: UserAvatarProps) {
-  const fallback = user.nombre
-    .split(' ')
-    .map((n) => n[0])
-    .join('');
+  const fallback = user.name
+    ? user.name
+      .split(' ')
+      .map((n) => n[0])
+      .join('')
+    : '??';
     
   return (
     <div className="relative">
       <Avatar className={cn('h-10 w-10', className)}>
-        <AvatarImage src={user.foto} alt={user.nombre} data-ai-hint="person portrait" />
+        <AvatarImage src={user.photo} alt={user.name} data-ai-hint="person portrait" />
         <AvatarFallback>{fallback}</AvatarFallback>
       </Avatar>
-      {showStatus && user.estado && (
+      {showStatus && user.status && (
         <span className={cn(
           'absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full ring-2 ring-background',
-          statusColorMap[user.estado]
+          statusColorMap[user.status]
         )} />
       )}
     </div>
   );
 }
+
+    

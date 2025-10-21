@@ -25,7 +25,7 @@ export function AddChatDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const [email, setEmail] = useState('');
+  const [pin, setPin] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const firestore = useFirestore();
@@ -34,8 +34,8 @@ export function AddChatDialog({
   const router = useRouter();
 
   const handleCreateChat = async () => {
-    if (!firestore || !currentUser || !email) {
-      setError('Email is required.');
+    if (!firestore || !currentUser || !pin) {
+      setError('User PIN is required.');
       return;
     }
 
@@ -43,13 +43,13 @@ export function AddChatDialog({
     setError('');
 
     try {
-      // 1. Find the user by email
+      // 1. Find the user by PIN
       const usersRef = collection(firestore, 'users');
-      const q = query(usersRef, where('email', '==', email));
+      const q = query(usersRef, where('pin', '==', pin));
       const querySnapshot = await getDocs(q);
 
       if (querySnapshot.empty) {
-        throw new Error('User not found.');
+        throw new Error('User with that PIN not found.');
       }
 
       const otherUser = querySnapshot.docs[0].data() as User;
@@ -88,10 +88,10 @@ export function AddChatDialog({
       
       toast({
         title: "Chat created!",
-        description: `You can now chat with ${otherUser.nombre}.`,
+        description: `You can now chat with ${otherUser.name}.`,
       });
       onOpenChange(false);
-      setEmail('');
+      setPin('');
       router.push(`/dashboard/chat/${newChatRef.id}`);
 
     } catch (e: any) {
@@ -112,20 +112,20 @@ export function AddChatDialog({
         <DialogHeader>
           <DialogTitle>Start a New Chat</DialogTitle>
           <DialogDescription>
-            Enter the email address of the user you want to chat with.
+            Enter the 6-digit PIN of the user you want to chat with.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
           <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="email" className="text-right">
-              Email
+            <Label htmlFor="pin" className="text-right">
+              User PIN
             </Label>
             <Input
-              id="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              id="pin"
+              value={pin}
+              onChange={(e) => setPin(e.target.value)}
               className="col-span-3"
-              placeholder="name@example.com"
+              placeholder="123456"
             />
           </div>
           {error && <p className="text-sm text-destructive text-center">{error}</p>}
@@ -139,3 +139,5 @@ export function AddChatDialog({
     </Dialog>
   );
 }
+
+    

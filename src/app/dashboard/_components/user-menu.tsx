@@ -9,7 +9,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
-import { Settings, LogOut, Users } from 'lucide-react';
+import { Settings, LogOut, Users, User as UserIcon } from 'lucide-react';
 import { UserAvatar } from '@/components/user-avatar';
 import { useUser, useAuth } from '@/firebase';
 import { signOut } from 'firebase/auth';
@@ -40,12 +40,13 @@ export function UserMenu() {
   
   const userProfile = {
       id: user.uid,
-      nombre: user.displayName || user.email || 'User',
+      name: user.displayName || user.email || 'User',
       email: user.email || '',
-      rol: 'usuario',
-      foto: user.photoURL || `https://picsum.photos/seed/${user.uid}/200/200`,
-      ultimoLogin: user.metadata.lastSignInTime || new Date().toISOString(),
-      estado: 'activo',
+      pin: '', // Will be fetched from firestore
+      role: 'user',
+      photo: user.photoURL || `https://picsum.photos/seed/${user.uid}/200/200`,
+      lastLogin: user.metadata.lastSignInTime || new Date().toISOString(),
+      status: 'active',
   };
 
 
@@ -59,7 +60,7 @@ export function UserMenu() {
           <div className="flex items-center gap-2">
             <UserAvatar user={userProfile} className="h-8 w-8" />
             <div className="flex flex-col">
-              <span className="text-sm font-medium">{userProfile.nombre}</span>
+              <span className="text-sm font-medium">{userProfile.name}</span>
               <span className="text-xs text-muted-foreground">{userProfile.email}</span>
             </div>
           </div>
@@ -68,13 +69,19 @@ export function UserMenu() {
       <DropdownMenuContent className="w-56" align="end" forceMount>
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1">
-            <p className="text-sm font-medium leading-none">{userProfile.nombre}</p>
+            <p className="text-sm font-medium leading-none">{userProfile.name}</p>
             <p className="text-xs leading-none text-muted-foreground">
               {userProfile.email}
             </p>
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
+        <DropdownMenuItem asChild>
+          <Link href="/dashboard/settings">
+            <UserIcon className="mr-2 h-4 w-4" />
+            <span>Profile</span>
+          </Link>
+        </DropdownMenuItem>
         <DropdownMenuItem asChild>
           <Link href="/dashboard/users">
             <Users className="mr-2 h-4 w-4" />
@@ -96,3 +103,5 @@ export function UserMenu() {
     </DropdownMenu>
   );
 }
+
+    

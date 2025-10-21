@@ -12,8 +12,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { UserAvatar } from '@/components/user-avatar';
-import { useUser, useFirestore, setDocumentNonBlocking } from '@/firebase';
-import { Camera } from 'lucide-react';
+import { useUser, useFirestore, setDocumentNonBlocking, useDoc, useMemoFirebase } from '@/firebase';
+import { Camera, Copy } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -23,44 +23,66 @@ import {
 } from '@/components/ui/select';
 import { useState, useEffect } from 'react';
 import { doc } from 'firebase/firestore';
+import type { User } from '@/lib/types';
+import { useToast } from '@/hooks/use-toast';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function SettingsPage() {
-  const { user, isUserLoading } = useUser();
+  const { user: authUser, isUserLoading } = useUser();
   const firestore = useFirestore();
+  const { toast } = useToast();
+
+  const userDocRef = useMemoFirebase(() => {
+    if (!firestore || !authUser) return null;
+    return doc(firestore, 'users', authUser.uid);
+  }, [firestore, authUser]);
+
+  const { data: userProfile, isLoading: isProfileLoading } = useDoc<User>(userDocRef);
+
   const [name, setName] = useState('');
-  const [status, setStatus] = useState('activo');
+  const [status, setStatus] = useState('active');
 
   useEffect(() => {
-    if (user) {
-      setName(user.displayName || '');
-      // In a real app, you'd fetch the user profile from Firestore to get the status
+    if (userProfile) {
+      setName(userProfile.name || '');
+      setStatus(userProfile.status || 'active');
     }
-  }, [user]);
+  }, [userProfile]);
 
   const handleProfileSave = () => {
-    if (!user || !firestore) return;
-    const userDocRef = doc(firestore, 'users', user.uid);
+    if (!userDocRef) return;
     setDocumentNonBlocking(userDocRef, {
-      nombre: name,
-      estado: status,
+      name: name,
+      status: status,
     }, { merge: true });
+    toast({ title: "Profile saved!", description: "Your changes have been updated." });
   };
   
-  if (isUserLoading || !user) {
+  const handleCopyPin = () => {
+    if(userProfile?.pin) {
+      navigator.clipboard.writeText(userProfile.pin);
+      toast({ title: "PIN Copied!", description: "You can now share your PIN with others." });
+    }
+  }
+
+  const isLoading = isUserLoading || isProfileLoading;
+
+  if (isLoading || !userProfile || !authUser) {
     return (
-       <div className="flex h-screen flex-col">
-        <MainHeader title="Settings" />
+      <div className="flex h-screen flex-col">
+        <MainHeader title="Profile" />
         <main className="flex-1 overflow-y-auto p-4 md:p-6">
           <div className="mx-auto grid max-w-3xl gap-6">
             <Card>
               <CardHeader>
                 <CardTitle className="font-headline">Profile</CardTitle>
                 <CardDescription>
-                  This is your public display name and avatar.
+                  This is your public display name, avatar, and PIN.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                  <div className="h-20 w-full bg-muted rounded-md animate-pulse"></div>
+                 <div className="h-10 w-full bg-muted rounded-md animate-pulse"></div>
                  <div className="h-10 w-full bg-muted rounded-md animate-pulse"></div>
               </CardContent>
                <CardFooter className="border-t px-6 py-4">
@@ -72,31 +94,20 @@ export default function SettingsPage() {
       </div>
     )
   }
-  
-  const userProfile = {
-      id: user.uid,
-      nombre: user.displayName || user.email || 'User',
-      email: user.email || '',
-      rol: 'usuario',
-      foto: user.photoURL || `https://picsum.photos/seed/${user.uid}/200/200`,
-      ultimoLogin: user.metadata.lastSignInTime || new Date().toISOString(),
-      estado: 'activo',
-  };
-
 
   return (
     <div className="flex h-screen flex-col">
-      <MainHeader title="Settings" />
+      <MainHeader title="Profile" />
       <main className="flex-1 overflow-y-auto p-4 md:p-6">
         <div className="mx-auto grid max-w-3xl gap-6">
           <Card>
             <CardHeader>
-              <CardTitle className="font-headline">Profile</CardTitle>
+              <CardTitle className="font-headline">Public Profile</CardTitle>
               <CardDescription>
-                This is your public display name and avatar.
+                This is your public display name, avatar, and PIN.
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-6">
               <div className="flex items-center gap-4">
                 <div className="relative">
                   <UserAvatar user={userProfile} className="h-20 w-20" />
@@ -114,6 +125,17 @@ export default function SettingsPage() {
                   <Input id="name" value={name} onChange={(e) => setName(e.target.value)} />
                 </div>
               </div>
+               <div className="grid gap-2">
+                  <Label htmlFor="pin">Your User PIN</Label>
+                  <div className="flex items-center gap-2">
+                    <Input id="pin" value={userProfile.pin} readOnly className="font-mono text-lg tracking-widest" />
+                    <Button variant="outline" size="icon" onClick={handleCopyPin}>
+                      <Copy className="h-4 w-4" />
+                      <span className="sr-only">Copy PIN</span>
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">Share this PIN to let others start a chat with you.</p>
+              </div>
               <div className="grid gap-2">
                 <Label htmlFor="status">Status</Label>
                 <Select value={status} onValueChange={setStatus}>
@@ -121,16 +143,16 @@ export default function SettingsPage() {
                     <SelectValue placeholder="Select status" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="activo">Active</SelectItem>
-                    <SelectItem value="ausente">Away</SelectItem>
-                    <SelectItem value="ocupado">Busy</SelectItem>
-                    <SelectItem value="inactivo">Inactive</SelectItem>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="away">Away</SelectItem>
+                    <SelectItem value="busy">Busy</SelectItem>
+                    <SelectItem value="inactive">Inactive</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </CardContent>
             <CardFooter className="border-t px-6 py-4">
-              <Button onClick={handleProfileSave}>Save</Button>
+              <Button onClick={handleProfileSave}>Save Changes</Button>
             </CardFooter>
           </Card>
 
@@ -161,7 +183,7 @@ export default function SettingsPage() {
               <CardTitle className="font-headline">Delete Account</CardTitle>
               <CardDescription>
                 Permanently delete your account and all of your content. This action is not reversible.
-              </CardDescription>
+              </C           </CardDescription>
             </CardHeader>
             <CardFooter className="border-t bg-destructive/10 px-6 py-4">
               <Button variant="destructive">Delete My Account</Button>
@@ -173,3 +195,5 @@ export default function SettingsPage() {
     </div>
   );
 }
+
+    
