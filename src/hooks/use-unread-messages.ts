@@ -1,11 +1,10 @@
 'use client';
 import { useMemo } from 'react';
-import { useUser, useDoc, useMemoFirebase, useFirestore } from '@/firebase';
-import { doc } from 'firebase/firestore';
-import type { Chat, User } from '@/lib/types';
+import { useUser, useDoc, useCollection, useMemoFirebase, useFirestore } from '@/firebase';
+import { doc, collection, query, where, orderBy } from 'firebase/firestore';
+import type { Chat, User, Message } from '@/lib/types';
 
-// Hook mejorado que usa timestamps de última lectura almacenados en el perfil del usuario
-// Esto evita leer todos los mensajes y problemas de permisos
+// Hook mejorado que cuenta los mensajes no leídos reales
 export function useUnreadMessages(chat: Chat & { id: string }) {
   const { user } = useUser();
   const firestore = useFirestore();
@@ -18,6 +17,24 @@ export function useUnreadMessages(chat: Chat & { id: string }) {
 
   const { data: userProfile } = useDoc<User>(userDocRef);
 
+  // Obtener los mensajes del chat para contar los no leídos
+  const messagesQuery = useMemoFirebase(() => {
+    if (!firestore || !user) return null;
+    
+    // Obtener el timestamp de última lectura
+    const lastReadAt = userProfile?.chatLastReadAt?.[chat.id] || 0;
+    
+    // Query para obtener solo mensajes después de la última lectura
+    // y que no sean del usuario actual
+    return query(
+      collection(firestore, 'chats', chat.id, 'messages'),
+      where('sentAt', '>', new Date(lastReadAt).toISOString()),
+      orderBy('sentAt', 'desc')
+    );
+  }, [firestore, user, chat.id, userProfile?.chatLastReadAt]);
+
+  const { data: unreadMessages } = useCollection<Message>(messagesQuery);
+
   const unreadCount = useMemo(() => {
     if (!user || !chat.lastMessageAt) return 0;
 
@@ -26,12 +43,17 @@ export function useUnreadMessages(chat: Chat & { id: string }) {
       return 0;
     }
 
-    // Obtener el timestamp de última lectura para este chat específico
+    // Si tenemos los mensajes no leídos, filtrar los que no son del usuario actual
+    if (unreadMessages) {
+      const count = unreadMessages.filter(msg => msg.senderId !== user.uid).length;
+      return count;
+    }
+
+    // Fallback: usar la lógica anterior si no hay mensajes
     const lastReadAt = userProfile?.chatLastReadAt?.[chat.id];
 
     if (!lastReadAt) {
-      // Si nunca se ha leído este chat, considerar que hay mensajes no leídos
-      // si el chat tiene mensajes recientes (últimas 24 horas)
+      // Si nunca se ha leído este chat, mostrar indicador genérico
       const oneDayAgo = Date.now() - (24 * 60 * 60 * 1000);
       const lastMessageTime = new Date(chat.lastMessageAt).getTime();
       return lastMessageTime > oneDayAgo ? 1 : 0;
@@ -40,7 +62,7 @@ export function useUnreadMessages(chat: Chat & { id: string }) {
     // Si el último mensaje es más reciente que la última lectura, hay mensajes no leídos
     const lastMessageTime = new Date(chat.lastMessageAt).getTime();
     return lastMessageTime > lastReadAt ? 1 : 0;
-  }, [user, chat, userProfile]);
+  }, [user, chat, userProfile, unreadMessages]);
 
   return {
     unreadCount,
