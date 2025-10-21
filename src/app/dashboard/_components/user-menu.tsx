@@ -80,7 +80,7 @@ export function UserMenu() {
         <DropdownMenuItem asChild>
           <Link href="/dashboard/settings">
             <UserIcon className="mr-2 h-4 w-4" />
-            <span>Profile</span>
+            <span>Perfil</span>
           </Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
