@@ -29,6 +29,7 @@ import type { User } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useSidebar } from '@/components/ui/sidebar';
 import { useState } from 'react';
+import { ThemeToggle } from '@/components/theme-toggle';
 
 export function UserMenu() {
   const { user: authUser, isUserLoading } = useUser();
@@ -122,6 +123,10 @@ export function UserMenu() {
               <span>Settings</span>
             </Link>
           </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <div className="px-2 py-1.5">
+            <ThemeToggle />
+          </div>
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={() => setShowLogoutDialog(true)}>
               <LogOut className="mr-2 h-4 w-4" />

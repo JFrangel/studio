@@ -64,6 +64,7 @@ export function MessageInput({ chatId }: { chatId: string }) {
     setDocumentNonBlocking(chatDocRef, {
         lastMessage: message,
         lastMessageAt: now,
+        lastMessageSender: user.uid,
     }, { merge: true });
 
     setMessage('');
@@ -124,6 +125,7 @@ export function MessageInput({ chatId }: { chatId: string }) {
       setDocumentNonBlocking(chatDocRef, {
           lastMessage: fileType === 'image' ? '📷 Image' : `📎 ${file.name}`,
           lastMessageAt: now,
+          lastMessageSender: user.uid,
       }, { merge: true });
 
       // Reset estado de subida

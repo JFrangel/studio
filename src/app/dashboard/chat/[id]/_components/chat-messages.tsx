@@ -113,7 +113,7 @@ function MessageItem({ message, chatId, chat }: MessageItemProps) {
         'flex-row-reverse': isSelf,
       })}
     >
-      <UserAvatar user={sender} showStatus={false} />
+      <UserAvatar user={sender} showStatus={false} className="chat-avatar" />
       <div
         className={cn('flex flex-col gap-1', {
           'items-end': isSelf,
@@ -124,7 +124,7 @@ function MessageItem({ message, chatId, chat }: MessageItemProps) {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
-                  className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity inline-flex items-center justify-center rounded-md hover:bg-accent hover:text-accent-foreground"
+                  className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity inline-flex items-center justify-center rounded-md hover:bg-accent hover:text-accent-foreground chat-button"
                 >
                   <MoreVertical className="h-4 w-4" />
                 </button>
@@ -188,14 +188,14 @@ function MessageItem({ message, chatId, chat }: MessageItemProps) {
                 />
                 <div className="flex gap-2 justify-end">
                   <button
-                    className="inline-flex items-center justify-center rounded-md text-sm font-medium h-9 px-3 hover:bg-accent hover:text-accent-foreground"
+                    className="inline-flex items-center justify-center rounded-md text-sm font-medium h-9 px-3 hover:bg-accent hover:text-accent-foreground chat-button"
                     onClick={handleCancelEdit}
                   >
                     <X className="h-4 w-4 mr-1" />
                     Cancel
                   </button>
                   <button
-                    className="inline-flex items-center justify-center rounded-md text-sm font-medium h-9 px-3 bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+                    className="inline-flex items-center justify-center rounded-md text-sm font-medium h-9 px-3 bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 chat-button"
                     onClick={handleSaveEdit}
                     disabled={!editedContent.trim()}
                   >

@@ -28,6 +28,7 @@ import { Toaster } from '@/components/ui/toaster';
 import './globals.css';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { ThemeProvider } from '@/contexts/theme-context';
 
 // Importar dinámicamente los proveedores de Firebase solo en el cliente
 const FirebaseClientProvider = dynamic(() => import('@/firebase/client-provider').then(mod => ({ default: mod.FirebaseClientProvider })), {
@@ -84,9 +85,11 @@ export default function RootLayout({
         />
       </head>
       <body className="font-body antialiased">
-        <FirebaseClientProvider>
-          <AppLayout>{children}</AppLayout>
-        </FirebaseClientProvider>
+        <ThemeProvider>
+          <FirebaseClientProvider>
+            <AppLayout>{children}</AppLayout>
+          </FirebaseClientProvider>
+        </ThemeProvider>
         <Toaster />
       </body>
     </html>

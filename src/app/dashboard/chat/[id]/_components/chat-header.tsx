@@ -190,13 +190,13 @@ export function ChatHeader({ chat }: { chat: Chat & {id: string} }) {
         onOpenChange={setManageGroupOpen}
         chat={chat}
       />
-      <div className="flex h-16 items-center gap-4 border-b bg-gradient-to-r from-primary/10 via-primary/5 to-background backdrop-blur-sm px-4 md:px-6">
+      <div className="flex h-16 items-center gap-4 border-b bg-gradient-to-r from-primary/10 via-primary/5 to-background backdrop-blur-sm px-4 md:px-6 chat-header">
         <div className="flex items-center gap-3">
           {isGroup ? (
             chat.groupAvatarStyle === 'avatar' && chat.groupAvatarSeed ? (
               <button 
                 onClick={handleAvatarClick}
-                className="hover:opacity-80 transition-opacity cursor-pointer"
+                className="hover:opacity-80 transition-opacity cursor-pointer chat-avatar"
               >
                 <Avatar className="h-10 w-10">
                   <AvatarImage 
@@ -212,7 +212,7 @@ export function ChatHeader({ chat }: { chat: Chat & {id: string} }) {
             ) : (
               <button 
                 onClick={handleAvatarClick}
-                className="flex h-10 w-10 items-center justify-center rounded-full bg-muted text-2xl hover:opacity-80 transition-opacity cursor-pointer"
+                className="flex h-10 w-10 items-center justify-center rounded-full bg-muted text-2xl hover:opacity-80 transition-opacity cursor-pointer chat-avatar"
               >
                 {groupImage}
               </button>
@@ -220,7 +220,7 @@ export function ChatHeader({ chat }: { chat: Chat & {id: string} }) {
           ) : isPersonal && currentUserProfile ? (
             <button 
               onClick={handleAvatarClick}
-              className="hover:opacity-80 transition-opacity cursor-pointer"
+              className="hover:opacity-80 transition-opacity cursor-pointer chat-avatar"
             >
               <UserAvatar 
                 user={currentUserProfile}
@@ -228,7 +228,7 @@ export function ChatHeader({ chat }: { chat: Chat & {id: string} }) {
               />
             </button>
           ) : userForAvatar ? (
-            <button onClick={handleAvatarClick} className="hover:opacity-80 transition-opacity cursor-pointer">
+            <button onClick={handleAvatarClick} className="hover:opacity-80 transition-opacity cursor-pointer chat-avatar">
               <UserAvatar user={userForAvatar} />
             </button>
           ) : (
@@ -237,16 +237,16 @@ export function ChatHeader({ chat }: { chat: Chat & {id: string} }) {
                 <button 
                   key={user.id}
                   onClick={() => router.push(`/dashboard/profile/${user.id}`)}
-                  className="hover:opacity-80 transition-opacity cursor-pointer"
+                  className="hover:opacity-80 transition-opacity cursor-pointer chat-avatar"
                 >
                   <UserAvatar user={user} className="h-9 w-9 border-2 border-card" />
                 </button>
               ))}
             </div>
           )}
-        <button onClick={handleAvatarClick} className="flex flex-col hover:opacity-80 transition-opacity cursor-pointer text-left min-w-0">
+        <button onClick={handleAvatarClick} className="flex flex-col hover:opacity-80 transition-opacity cursor-pointer text-left min-w-0 chat-button">
           <div className="flex items-center gap-2">
-            <h2 className="text-base font-semibold font-headline truncate">
+            <h2 className="text-base font-semibold font-headline truncate group-header">
               {name}
               {isPersonal && <span className="text-muted-foreground ml-2">(yo)</span>}
             </h2>

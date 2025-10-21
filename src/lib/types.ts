@@ -11,6 +11,7 @@ export type User = {
   status: 'active' | 'inactive' | 'busy' | 'away';
   description?: string;
   searchable?: boolean; // true = aparece en búsquedas, false/undefined = privado
+  chatLastReadAt?: Record<string, number>; // Timestamps de última lectura por chat (chatId -> timestamp)
 };
 
 export type Chat = {
@@ -22,6 +23,7 @@ export type Chat = {
   createdAt: string; // ISO string
   lastMessage?: string;
   lastMessageAt?: string; // ISO string
+  lastMessageSender?: string; // ID del usuario que envió el último mensaje
   createdBy: string;
   adminIds?: string[]; // Co-creadores/administradores del grupo (incluye al creador)
   groupImage?: string; // URL or emoji for group image

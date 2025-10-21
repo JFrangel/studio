@@ -129,7 +129,7 @@ export function UserList() {
   }
 
   return (
-    <Card>
+    <Card className="user-list">
       <Table>
         <TableHeader>
           <TableRow>

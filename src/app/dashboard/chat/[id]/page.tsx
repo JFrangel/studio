@@ -10,11 +10,15 @@ import type { Chat, Message } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertCircle } from 'lucide-react';
+import { useMarkMessagesAsRead } from '@/hooks/use-mark-messages-read';
 
 export default function ChatPage({ params }: { params: Promise<{ id: string }> }) {
   const firestore = useFirestore();
   const { user } = useUser();
   const { id: chatId } = use(params);
+
+  // Marcar mensajes como leídos cuando se abre el chat
+  useMarkMessagesAsRead(chatId);
 
   const chatRef = useMemoFirebase(() => {
     if (!firestore) return null;

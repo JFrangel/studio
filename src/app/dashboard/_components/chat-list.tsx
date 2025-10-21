@@ -41,6 +41,7 @@ import {
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { getAvatarUrl, type GroupAvatarStyle } from '@/lib/avatars';
 import { GroupBadge, RoleBadge } from '@/components/role-badges';
+import { useUnreadMessages } from '@/hooks/use-unread-messages';
 
 function ChatListItem({ 
   chat, 
@@ -66,6 +67,9 @@ function ChatListItem({
   const [otherUser, setOtherUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const { setOpenMobile, isMobile } = useSidebar();
+
+  // Hook para mensajes no leídos
+  const { unreadCount, hasUnread } = useUnreadMessages(chat);
 
   // Obtener el perfil completo del usuario actual desde Firestore
   const currentUserDocRef = useMemoFirebase(() => {
@@ -171,16 +175,16 @@ function ChatListItem({
           </button>
         )}
         
-        <SidebarMenuButton asChild className="flex-1">
+        <SidebarMenuButton asChild className="flex-1 sidebar-menu-button">
           <Link 
             href={`/dashboard/chat/${chat.id}`} 
             className={isMuted ? 'opacity-50' : ''}
             onClick={handleClick}
           >
-            <div className="relative">
+            <div className="relative flex-shrink-0">
               {isGroup ? (
                 chat.groupAvatarStyle === 'avatar' && chat.groupAvatarSeed ? (
-                  <Avatar className="h-8 w-8">
+                  <Avatar className="h-8 w-8 chat-avatar">
                     <AvatarImage 
                       src={getAvatarUrl(
                         chat.groupAvatarSeed,
@@ -191,14 +195,14 @@ function ChatListItem({
                     <AvatarFallback>{chat.name?.[0] || '👥'}</AvatarFallback>
                   </Avatar>
                 ) : (
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-xl">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-xl chat-avatar">
                     {groupImage}
                   </div>
                 )
               ) : avatarUser ? (
-                <UserAvatar user={avatarUser as any} className="h-8 w-8" />
+                <UserAvatar user={avatarUser as any} className="h-8 w-8 chat-avatar" />
               ) : (
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-sm font-semibold">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-sm font-semibold chat-avatar">
                   📝
                 </div>
               )}
@@ -206,26 +210,34 @@ function ChatListItem({
                 <Pin className="absolute -top-1 -right-1 h-3 w-3 text-primary fill-primary" />
               )}
             </div>
-            <span className="flex-1 truncate flex items-center gap-1">
-              {name}
-              {isPersonal && (
-                <>
-                  <span className="text-muted-foreground ml-1">(yo)</span>
-                  {/* Insignia de admin si el usuario actual es admin */}
-                  {currentUserProfile?.role === 'admin' && <RoleBadge type="platform-admin" size="sm" />}
-                </>
+            <div className="flex-1 min-w-0 flex items-center justify-between">
+              <span className={`truncate flex items-center gap-1 ${hasUnread ? 'font-semibold' : ''}`}>
+                {name}
+                {isPersonal && (
+                  <>
+                    <span className="text-muted-foreground ml-1">(yo)</span>
+                    {/* Insignia de admin si el usuario actual es admin */}
+                    {currentUserProfile?.role === 'admin' && <RoleBadge type="platform-admin" size="sm" />}
+                  </>
+                )}
+                {isGroup && <GroupBadge />}
+                {/* Insignia para chats con admins de plataforma */}
+                {!isGroup && otherUser?.role === 'admin' && <RoleBadge type="platform-admin" size="sm" />}
+              </span>
+              {/* Indicador de mensajes no leídos */}
+              {hasUnread && (
+                <div className="bg-red-500 text-white text-xs font-bold rounded-full min-w-[20px] h-5 flex items-center justify-center px-1 border-2 border-background ml-2 flex-shrink-0">
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </div>
               )}
-              {isGroup && <GroupBadge />}
-              {/* Insignia para chats con admins de plataforma */}
-              {!isGroup && otherUser?.role === 'admin' && <RoleBadge type="platform-admin" size="sm" />}
-            </span>
+            </div>
           </Link>
         </SidebarMenuButton>
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button 
-              className="opacity-0 group-hover:opacity-100 p-2 hover:bg-accent rounded-md transition-opacity"
+              className="opacity-0 group-hover:opacity-100 p-2 hover:bg-accent rounded-md transition-opacity chat-button"
               onClick={(e) => e.stopPropagation()}
             >
               <MoreVertical className="h-4 w-4" />

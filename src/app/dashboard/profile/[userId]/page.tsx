@@ -90,7 +90,7 @@ export default function ProfilePage({ params }: { params: Promise<{ userId: stri
   }
 
   return (
-    <div className="flex h-full items-center justify-center p-4">
+    <div className="flex h-full items-center justify-center p-4 profile-page">
       <Card className="w-full max-w-md">
         <CardHeader>
           <Button

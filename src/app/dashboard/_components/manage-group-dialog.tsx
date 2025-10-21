@@ -465,10 +465,10 @@ export function ManageGroupDialog({ open, onOpenChange, chat }: ManageGroupDialo
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto w-[95vw]">
+        <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto w-[95vw] group-settings manage-group">
           <DialogHeader>
-            <DialogTitle className="text-base sm:text-lg">Group Settings</DialogTitle>
-            <DialogDescription className="text-xs sm:text-sm">
+            <DialogTitle className="text-base sm:text-lg group-header">Group Settings</DialogTitle>
+            <DialogDescription className="text-xs sm:text-sm group-info">
               Edit group details, manage members and administrators
             </DialogDescription>
           </DialogHeader>

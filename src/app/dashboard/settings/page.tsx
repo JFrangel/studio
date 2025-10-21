@@ -32,6 +32,7 @@ import { useRouter } from 'next/navigation';
 import { signOut } from 'firebase/auth';
 import { useSidebar } from '@/components/ui/sidebar';
 import { Textarea } from '@/components/ui/textarea';
+import { useTheme } from '@/contexts/theme-context';
 
 export default function SettingsPage() {
   const { user: authUser, isUserLoading } = useUser();
@@ -40,6 +41,7 @@ export default function SettingsPage() {
   const router = useRouter();
   const { toast } = useToast();
   const { setOpenMobile, isMobile } = useSidebar();
+  const { theme, toggleTheme } = useTheme();
 
   const userDocRef = useMemoFirebase(() => {
     if (!firestore || !authUser) return null;
@@ -168,10 +170,10 @@ export default function SettingsPage() {
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back to Dashboard
           </Button>
-          <Card>
+          <Card className="settings-card">
             <CardHeader className="p-4 sm:p-6">
-              <CardTitle className="font-headline text-lg sm:text-xl">Public Profile</CardTitle>
-              <CardDescription className="text-xs sm:text-sm">
+              <CardTitle className="font-headline text-lg sm:text-xl settings-title">Public Profile</CardTitle>
+              <CardDescription className="text-xs sm:text-sm settings-description">
                 This is your public display name, avatar, and PIN.
               </CardDescription>
             </CardHeader>
@@ -183,8 +185,8 @@ export default function SettingsPage() {
                     <UserAvatar user={userProfile} className="h-16 w-16 sm:h-20 sm:w-20" />
                   </div>
                   <div className="flex-1 space-y-2 w-full">
-                    <Label className="text-sm sm:text-base">Avatar</Label>
-                    <p className="text-xs sm:text-sm text-muted-foreground">
+                    <Label className="text-sm sm:text-base settings-label">Avatar</Label>
+                    <p className="text-xs sm:text-sm text-muted-foreground settings-description">
                       Elige un avatar animado o usa tu foto de Google
                     </p>
                     <div className="flex flex-col sm:flex-row flex-wrap gap-2">
@@ -213,7 +215,7 @@ export default function SettingsPage() {
 
               {/* Name Section */}
               <div className="grid gap-2">
-                <Label htmlFor="name" className="text-sm sm:text-base">Full Name</Label>
+                <Label htmlFor="name" className="text-sm sm:text-base settings-label">Full Name</Label>
                 <Input 
                   id="name" 
                   value={name} 
@@ -225,7 +227,7 @@ export default function SettingsPage() {
 
               {/* Description Section */}
               <div className="grid gap-2">
-                <Label htmlFor="description" className="text-sm sm:text-base">Description</Label>
+                <Label htmlFor="description" className="text-sm sm:text-base settings-label">Description</Label>
                 <Textarea 
                   id="description" 
                   value={description} 
@@ -235,13 +237,13 @@ export default function SettingsPage() {
                   className="text-sm sm:text-base min-h-[80px] resize-none"
                   maxLength={200}
                 />
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-muted-foreground settings-description">
                   {description.length}/200 characters
                 </p>
               </div>
 
                <div className="grid gap-2">
-                  <Label htmlFor="pin" className="text-sm sm:text-base">Your User PIN</Label>
+                  <Label htmlFor="pin" className="text-sm sm:text-base settings-label">Your User PIN</Label>
                   <div className="flex items-center gap-2">
                     <Input 
                       id="pin" 
@@ -254,10 +256,10 @@ export default function SettingsPage() {
                       <span className="sr-only">Copy PIN</span>
                     </Button>
                   </div>
-                  <p className="text-xs text-muted-foreground">Share this PIN to let others start a chat with you.</p>
+                  <p className="text-xs text-muted-foreground settings-description">Share this PIN to let others start a chat with you.</p>
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="status" className="text-sm sm:text-base">Status</Label>
+                <Label htmlFor="status" className="text-sm sm:text-base settings-label">Status</Label>
                 <Select value={status} onValueChange={setStatus} disabled={isLoading}>
                   <SelectTrigger id="status" className="w-full sm:w-[200px] text-sm sm:text-base">
                     <SelectValue placeholder="Select status" />
@@ -273,8 +275,8 @@ export default function SettingsPage() {
               <div className="grid gap-3">
                 <div className="flex items-center justify-between gap-4">
                   <div className="space-y-0.5 flex-1 min-w-0">
-                    <Label htmlFor="searchable" className="text-sm sm:text-base">Aparecer en búsquedas</Label>
-                    <p className="text-xs sm:text-sm text-muted-foreground">
+                    <Label htmlFor="searchable" className="text-sm sm:text-base settings-label">Aparecer en búsquedas</Label>
+                    <p className="text-xs sm:text-sm text-muted-foreground settings-description">
                       Permite que otros usuarios puedan encontrarte en el buscador
                     </p>
                   </div>
@@ -282,6 +284,25 @@ export default function SettingsPage() {
                     id="searchable"
                     checked={searchable}
                     onCheckedChange={setSearchable}
+                    disabled={isLoading}
+                    className="shrink-0"
+                  />
+                </div>
+              </div>
+
+              {/* Theme Section */}
+              <div className="grid gap-3">
+                <div className="flex items-center justify-between gap-4">
+                  <div className="space-y-0.5 flex-1 min-w-0">
+                    <Label htmlFor="monochrome" className="text-sm sm:text-base settings-label">Modo monocromático</Label>
+                    <p className="text-xs sm:text-sm text-muted-foreground settings-description">
+                      Cambia a un tema oscuro con tonos grises
+                    </p>
+                  </div>
+                  <Switch
+                    id="monochrome"
+                    checked={theme === 'monochrome'}
+                    onCheckedChange={toggleTheme}
                     disabled={isLoading}
                     className="shrink-0"
                   />
