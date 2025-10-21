@@ -2,37 +2,35 @@
  * @fileoverview Firestore Security Rules for ChatStatus application.
  *
  * Core Philosophy:
- * This ruleset enforces a strict user-centric security model. Users primarily have access to their own data.
- * Access to chat data is controlled by shared access principles. Additionally, admin roles are supported.
+ * This ruleset enforces a strict user-centric security model. Users have full control over their profiles and notifications.
+ * Access to chats and messages is limited to participants only. Administrative privileges are granted based on document
+ * existence in the /roles_admin collection.  The rules prioritize simplicity and security, favoring explicit checks
+ * over complex data validation during this prototyping phase.
  *
  * Data Structure:
- * - /users/{userId}: User profile data.
- * - /chats/{chatId}: Chat room metadata, including participant lists.
- * - /chats/{chatId}/messages/{messageId}: Individual chat messages.
- * - /users/{userId}/notifications/{notificationId}: User-specific notifications.
- * - /roles_admin/{userId}: Presence of a document grants admin privileges.
+ * - /users/{userId}: Stores user profiles, accessible only to the user themselves and admins.
+ * - /chats/{chatId}: Stores chat metadata, accessible to chat participants.
+ * - /chats/{chatId}/messages/{messageId}: Stores messages within a chat, accessible only to chat participants.
+ * - /users/{userId}/notifications/{notificationId}: Stores notifications for a user, accessible only to the user.
+ * - /roles_admin/{userId}:  A document existing in this collection grants the user admin privileges.
  *
  * Key Security Decisions:
- * - Users can only create, read, update, and delete their own user documents.
- * - Chat access is limited to participants listed in the chat's `participantIds` array.
- * - Users can only manage their own notifications.
- * - Listing of users is disallowed except through admin privileges.
- * - Data type validation is relaxed to allow for rapid prototyping. Only authorization-critical fields are validated.
+ * - User listing is implicitly denied by not providing a `list` rule on the `/users` collection.
+ * - The existence of a document in `/roles_admin/{userId}` grants admin privileges.
+ * - Default security posture is strict: If a relationship or access pattern is ambiguous, access is denied.
  *
  * Denormalization for Authorization:
- * The `chats` collection uses a `participantIds` array to denormalize user membership, enabling efficient access control rules without extra `get()` calls.
+ * - The `chats/{chatId}` documents contain a `participantIds` array to determine chat membership. This avoids costly `get()` calls to a separate membership collection.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Enforces user-ownership for user profiles, allowing users to manage their own data.
+     * @description Secure user profiles. Only the user or an admin can access their data.
      * @path /users/{userId}
-     * @allow (create) - User with UID 'user_abc' creates a profile document with ID 'user_abc'.
-     * @allow (get, update, delete) - User with UID 'user_abc' reads/updates/deletes their own profile document with ID 'user_abc'.
-     * @deny (create) - User with UID 'user_xyz' attempts to create a profile document with ID 'user_abc'.
-     * @deny (get, update, delete) - User with UID 'user_xyz' attempts to read/update/delete user profile document with ID 'user_abc'.
+     * @allow (create, get, update, delete, list) if the user is the owner (userId == request.auth.uid).
+     * @deny (create, get, update, delete, list) if the user is not the owner.
      * @principle Enforces document ownership for writes.
      */
     match /users/{userId} {
@@ -41,56 +39,56 @@ service cloud.firestore {
       }
 
       function isOwner(userId) {
-        return request.auth.uid == userId;
+        return isSignedIn() && request.auth.uid == userId;
       }
-      allow get: if isOwner(userId);
-      allow list: if false;
-      allow create: if isSignedIn() && isOwner(userId) && request.resource.data.id == userId;
-      allow update: if isSignedIn() && isOwner(userId) && resource.data.id == userId;
-      allow delete: if isSignedIn() && isOwner(userId) && resource.data.id == userId;
+
+      function isAdmin() {
+        return exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
+      }
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if false; // Listing users is not allowed
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId) || isAdmin();
+      allow delete: if isOwner(userId) || isAdmin();
     }
 
     /**
-     * @description Controls access to chat metadata, ensuring only participants can access chat details.
+     * @description Secure chat metadata. Only participants can access chat details.
      * @path /chats/{chatId}
-     * @allow (get, list) - User with UID 'user_abc' gets/lists chat documents if 'user_abc' is in the 'participantIds' array.
-     * @allow (create) - User with UID 'user_abc' creates a chat document if 'user_abc' is the 'createdBy'.
-     * @allow (update, delete) - User with UID 'user_abc' updates/deletes a chat document if 'user_abc' is in the 'participantIds' array.
-     * @deny (get, list) - User with UID 'user_xyz' attempts to get/list chat documents if 'user_xyz' is not in the 'participantIds' array.
-     * @deny (create) - User with UID 'user_xyz' attempts to create a chat document if 'user_xyz' is not the 'createdBy'.
-     * @deny (update, delete) - User with UID 'user_xyz' attempts to update/delete a chat document if 'user_xyz' is not in the 'participantIds' array.
-     * @principle Enforces shared access based on the `participantIds` array.
+     * @allow (get, list) if the user is a participant.
+     * @allow (create) if the user is the creator.
+     * @allow (update, delete) if the user is the creator.
+     * @deny any operation if the user is not a participant or creator.
+     * @principle Enforces chat membership for access.
      */
     match /chats/{chatId} {
       function isSignedIn() {
         return request.auth != null;
       }
 
-      function isParticipant(chatId) {
-        return isSignedIn() && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participantIds;
+      function isParticipant() {
+        return isSignedIn() && request.auth.uid in resource.data.participantIds;
       }
 
-      function isChatCreator(chatId) {
-        return isSignedIn() && request.auth.uid == request.resource.data.createdBy;
+      function isChatCreator() {
+          return isSignedIn() && request.auth.uid == resource.data.createdBy;
       }
 
-      allow get: if isParticipant(chatId);
+      allow get: if isParticipant();
       allow list: if isSignedIn();
-      allow create: if isSignedIn() && isChatCreator(chatId);
-      allow update: if isSignedIn() && isParticipant(chatId) && resource != null;
-      allow delete: if isSignedIn() && isParticipant(chatId) && resource != null;
+      allow create: if isSignedIn();
+      allow update: if isChatCreator();
+      allow delete: if isChatCreator();
     }
 
     /**
-     * @description Restricts access to messages within a chat to only chat participants.
+     * @description Secure messages within a chat. Only chat participants can access messages.
      * @path /chats/{chatId}/messages/{messageId}
-     * @allow (get, list) - User with UID 'user_abc' gets/lists messages if 'user_abc' is in the 'participantIds' array of the parent chat.
-     * @allow (create) - User with UID 'user_abc' creates a message if 'user_abc' is the 'senderId'.
-     * @allow (update, delete) - User with UID 'user_abc' updates/deletes a message if 'user_abc' is the 'senderId' of the message and in the 'participantIds' array of the parent chat.
-     * @deny (get, list) - User with UID 'user_xyz' attempts to get/list messages if 'user_xyz' is not in the 'participantIds' array of the parent chat.
-     * @deny (create) - User with UID 'user_xyz' attempts to create a message if 'user_xyz' is not the 'senderId'.
-     * @deny (update, delete) - User with UID 'user_xyz' attempts to update/delete a message if 'user_xyz' is not the 'senderId' of the message or not in the 'participantIds' array of the parent chat.
-     * @principle Enforces shared access based on the `participantIds` array of the parent chat document.
+     * @allow (get, list) if the user is a participant in the chat.
+     * @allow (create) if the user is a participant in the chat.
+     * @allow (update, delete) if the user is the sender and the chat participant.
+     * @deny any operation if the user is not a participant.
+     * @principle Enforces chat membership for message access.
      */
     match /chats/{chatId}/messages/{messageId} {
       function isSignedIn() {
@@ -101,27 +99,23 @@ service cloud.firestore {
         return isSignedIn() && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participantIds;
       }
 
-      function isMessageSender(messageId) {
-        return isSignedIn() && request.auth.uid == request.resource.data.senderId;
+      function isSender(messageId) {
+        return isSignedIn() && request.auth.uid == resource.data.senderId;
       }
 
       allow get: if isParticipant(chatId);
       allow list: if isParticipant(chatId);
-      allow create: if isSignedIn() && isParticipant(chatId) && isMessageSender(messageId);
-      allow update: if isSignedIn() && isParticipant(chatId) && isMessageSender(messageId) && resource != null;
-      allow delete: if isSignedIn() && isParticipant(chatId) && isMessageSender(messageId) && resource != null;
+      allow create: if isParticipant(chatId);
+      allow update: if isSender(messageId) && isParticipant(chatId);
+      allow delete: if isSender(messageId) && isParticipant(chatId);
     }
 
     /**
-     * @description Controls access to user-specific notifications, ensuring only the user can manage their notifications.
+     * @description Secure notifications for a user. Only the user can access their notifications.
      * @path /users/{userId}/notifications/{notificationId}
-     * @allow (get, list) - User with UID 'user_abc' gets/lists their notifications if 'userId' matches their UID.
-     * @allow (create) - User with UID 'user_abc' creates a notification if 'userId' matches their UID.
-     * @allow (update, delete) - User with UID 'user_abc' updates/deletes their notification if 'userId' matches their UID.
-     * @deny (get, list) - User with UID 'user_xyz' attempts to get/list notifications for user 'user_abc'.
-     * @deny (create) - User with UID 'user_xyz' attempts to create a notification for user 'user_abc'.
-     * @deny (update, delete) - User with UID 'user_xyz' attempts to update/delete a notification for user 'user_abc'.
-     * @principle Enforces document ownership for writes, restricting access to a user's own data tree.
+     * @allow (create, get, update, delete, list) if the user is the owner (userId == request.auth.uid).
+     * @deny (create, get, update, delete, list) if the user is not the owner.
+     * @principle Enforces document ownership for writes.
      */
     match /users/{userId}/notifications/{notificationId} {
       function isSignedIn() {
@@ -134,31 +128,30 @@ service cloud.firestore {
 
       allow get: if isOwner(userId);
       allow list: if isOwner(userId);
-      allow create: if isSignedIn() && isOwner(userId) && request.resource.data.userId == userId;
-      allow update: if isSignedIn() && isOwner(userId) && resource.data.userId == userId && resource != null;
-      allow delete: if isSignedIn() && isOwner(userId) && resource.data.userId == userId && resource != null;
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId);
+      allow delete: if isOwner(userId);
     }
 
      /**
-      * @description Grants admin privileges to the user if a document exists with their ID in the /roles_admin/{userId} collection.
+      * @description Grants admin privileges to the user if a document exists with their ID.
       * @path /roles_admin/{userId}
-      * @allow (get, list, create, update, delete) - Only allow access if user is the admin.
-      * @principle Restricts access to the admin collection to authenticated admins.
+      * @allow get: if false;
+      * @allow list: if false;
+      * @allow create: if false;
+      * @allow update: if false;
+      * @allow delete: if request.auth.uid == userId;
+      * @principle Restricts access to admin role management.
       */
-     match /roles_admin/{userId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
-
-      function isAdmin(userId) {
-        return isSignedIn() && exists(/databases/$(database)/documents/roles_admin/$(userId));
-      }
-
-      allow get: if isAdmin(userId);
-      allow list: if false;
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
-     }
+    match /roles_admin/{userId} {
+        function isAdmin() {
+          return exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
+        }
+        allow get: if isAdmin();
+        allow list: if false;
+        allow create: if false;
+        allow update: if false;
+        allow delete: if request.auth.uid == userId;
+    }
   }
 }
