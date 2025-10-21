@@ -3,8 +3,8 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Paperclip, Mic, Send, Smile } from 'lucide-react';
 import { useState } from 'react';
-import { useUser, useFirestore, addDocumentNonBlocking } from '@/firebase';
-import { collection, serverTimestamp } from 'firebase/firestore';
+import { useUser, useFirestore, addDocumentNonBlocking, setDocumentNonBlocking } from '@/firebase';
+import { collection, serverTimestamp, doc } from 'firebase/firestore';
 
 export function MessageInput({ chatId }: { chatId: string }) {
   const [message, setMessage] = useState('');
@@ -16,18 +16,22 @@ export function MessageInput({ chatId }: { chatId: string }) {
     if (!message.trim() || !user || !firestore) return;
 
     const messagesColRef = collection(firestore, 'chats', chatId, 'messages');
+    const now = new Date().toISOString();
     
     addDocumentNonBlocking(messagesColRef, {
       remitenteId: user.uid,
       contenido: message,
       tipo: 'texto',
       leidoPor: [],
-      enviadoEn: new Date().toISOString(), // Using client time for simplicity, serverTimestamp is better
+      enviadoEn: now,
       editado: false,
     });
     
-    // Also update the last message on the chat document
-    // This is omitted for brevity but would be important in a real app
+    const chatDocRef = doc(firestore, 'chats', chatId);
+    setDocumentNonBlocking(chatDocRef, {
+        ultimoMensaje: message,
+        ultimoMensajeEn: now,
+    }, { merge: true });
 
     setMessage('');
   };

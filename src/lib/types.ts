@@ -15,9 +15,9 @@ export type Chat = {
   nombre?: string;
   tipo: 'privado' | 'grupal';
   participantes: string[];
-  creadoEn: string;
-  ultimoMensaje: string;
-  ultimoMensajeTimestamp: string;
+  creadoEn: string; // Should be ISO string
+  ultimoMensaje?: string;
+  ultimoMensajeEn?: string; // Should be ISO string
   creadoPor: string;
 };
 

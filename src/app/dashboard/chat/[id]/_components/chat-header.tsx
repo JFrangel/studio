@@ -15,7 +15,7 @@ export function ChatHeader({ chat }: { chat: Chat & {id: string} }) {
   const usersQuery = useMemoFirebase(() => {
     if (!firestore || participantIds.length === 0) return null;
     return query(collection(firestore, 'users'), where('id', 'in', participantIds));
-  }, [firestore, participantIds]);
+  }, [firestore, participantIds.join(',')]); // Use join to create a stable dependency
 
   const { data: participantUsers } = useCollection<User>(usersQuery);
 
