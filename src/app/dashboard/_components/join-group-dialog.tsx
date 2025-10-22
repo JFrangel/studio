@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useUser, useFirestore, setDocumentNonBlocking } from '@/firebase';
+import { useUser, useFirestore, setDocumentNonBlocking, addDocumentNonBlocking } from '@/firebase';
 import { collection, query, where, getDocs, doc, arrayUnion } from 'firebase/firestore';
 import {
   Dialog,
@@ -52,7 +52,7 @@ export function JoinGroupDialog({ open, onOpenChange }: JoinGroupDialogProps) {
       const querySnapshot = await getDocs(q);
 
       if (querySnapshot.empty) {
-        setError('Group not found. Please check the PIN and try again.');
+        setError('Grupo no encontrado. Por favor verifica el PIN e intenta de nuevo.');
         setIsSearching(false);
         return;
       }
@@ -87,7 +87,7 @@ export function JoinGroupDialog({ open, onOpenChange }: JoinGroupDialogProps) {
         );
         
         if (existingRequest) {
-          setError('You already have a pending request to join this group. Please wait for approval.');
+          setError('Ya tienes una solicitud pendiente para unirte a este grupo. Por favor espera la aprobación.');
           setIsSearching(false);
           return;
         }
@@ -96,7 +96,7 @@ export function JoinGroupDialog({ open, onOpenChange }: JoinGroupDialogProps) {
       setFoundGroup(group);
     } catch (error) {
       console.error('Error searching group:', error);
-      setError('Error searching for group');
+      setError('Error al buscar el grupo');
     } finally {
       setIsSearching(false);
     }
@@ -137,8 +137,8 @@ export function JoinGroupDialog({ open, onOpenChange }: JoinGroupDialogProps) {
         setError('');
         
         toast({
-          title: "Join request sent!",
-          description: "Your request has been sent to the group admins. You'll be notified once it's approved.",
+          title: "Solicitud enviada!",
+          description: "Tu solicitud ha sido enviada a los administradores del grupo. Serás notificado una vez que sea aprobada.",
         });
         
         onOpenChange(false);
@@ -146,13 +146,32 @@ export function JoinGroupDialog({ open, onOpenChange }: JoinGroupDialogProps) {
         setFoundGroup(null);
       } else {
         // Si el grupo es público, unirse directamente
+        const now = new Date().toISOString();
+        
         await setDocumentNonBlocking(
           chatRef,
           {
             participantIds: arrayUnion(currentUser.uid),
+            lastMessageAt: now,
           },
           { merge: true }
         );
+
+        // Crear mensaje del sistema
+        const messagesRef = collection(firestore, 'chats', foundGroup.id, 'messages');
+        const userName = currentUser.displayName || currentUser.email || 'Usuario';
+        
+        const joinMessage = {
+          senderId: 'system',
+          content: `${userName} se ha unido al grupo`,
+          type: 'system',
+          systemMessageType: 'member_joined',
+          readBy: [],
+          sentAt: now,
+          edited: false,
+        };
+        
+        await addDocumentNonBlocking(messagesRef, joinMessage);
 
         // Navegar al chat del grupo
         router.push(`/dashboard/chat/${foundGroup.id}`);
@@ -162,7 +181,7 @@ export function JoinGroupDialog({ open, onOpenChange }: JoinGroupDialogProps) {
       }
     } catch (error) {
       console.error('Error joining group:', error);
-      setError('Error joining group');
+      setError('Error al unirse al grupo');
     } finally {
       setIsSearching(false);
     }
@@ -181,9 +200,9 @@ export function JoinGroupDialog({ open, onOpenChange }: JoinGroupDialogProps) {
     }}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>Join Group</DialogTitle>
+          <DialogTitle>Unirse al Grupo</DialogTitle>
           <DialogDescription>
-            Enter the group PIN to find and join a group
+            Ingresa el PIN del grupo para encontrar y unirte
           </DialogDescription>
         </DialogHeader>
 
@@ -192,13 +211,13 @@ export function JoinGroupDialog({ open, onOpenChange }: JoinGroupDialogProps) {
             <>
               {/* Group PIN Input */}
               <div>
-                <Label htmlFor="group-pin">Group PIN</Label>
+                <Label htmlFor="group-pin">PIN del Grupo</Label>
                 <div className="flex gap-2 mt-2">
                   <div className="relative flex-1">
                     <Key className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
                       id="group-pin"
-                      placeholder="Enter 6-digit PIN"
+                      placeholder="Ingresa el PIN de 6 dígitos"
                       value={groupPin}
                       onChange={(e) => setGroupPin(e.target.value)}
                       onKeyDown={(e) => {
@@ -217,11 +236,11 @@ export function JoinGroupDialog({ open, onOpenChange }: JoinGroupDialogProps) {
                     disabled={isSearching || !groupPin.trim() || groupPin.length < 6}
                     className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {isSearching ? 'Searching...' : 'Search'}
+                    {isSearching ? 'Buscando...' : 'Buscar'}
                   </button>
                 </div>
                 <p className="text-xs text-muted-foreground mt-2">
-                  Ask the group admin for the group PIN
+                  Solicita el PIN al administrador del grupo
                 </p>
               </div>
 
@@ -250,15 +269,15 @@ export function JoinGroupDialog({ open, onOpenChange }: JoinGroupDialogProps) {
                     <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
                       <span className="flex items-center gap-1">
                         <Users className="h-3 w-3" />
-                        {foundGroup.participantIds.length} members
+                        {foundGroup.participantIds.length} miembros
                       </span>
                       {foundGroup.visibility === 'public' ? (
                         <span className="px-2 py-0.5 bg-green-500/10 text-green-700 dark:text-green-400 rounded-full">
-                          Public
+                          Público
                         </span>
                       ) : foundGroup.visibility === 'private' ? (
                         <span className="px-2 py-0.5 bg-orange-500/10 text-orange-700 dark:text-orange-400 rounded-full">
-                          Private - Requires Approval
+                          Privado - Requiere Aprobación
                         </span>
                       ) : null}
                     </div>
@@ -270,7 +289,7 @@ export function JoinGroupDialog({ open, onOpenChange }: JoinGroupDialogProps) {
                     onClick={handleReset}
                     className="flex-1 px-4 py-2 border rounded-md hover:bg-accent"
                   >
-                    Cancel
+                    Cancelar
                   </button>
                   <button
                     onClick={handleJoinGroup}
@@ -278,8 +297,8 @@ export function JoinGroupDialog({ open, onOpenChange }: JoinGroupDialogProps) {
                     className="flex-1 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-50"
                   >
                     {isSearching 
-                      ? (foundGroup.visibility === 'private' ? 'Sending Request...' : 'Joining...') 
-                      : (foundGroup.visibility === 'private' ? 'Request to Join' : 'Join Group')}
+                      ? (foundGroup.visibility === 'private' ? 'Enviando Solicitud...' : 'Uniéndose...') 
+                      : (foundGroup.visibility === 'private' ? 'Solicitar Unirse' : 'Unirse al Grupo')}
                   </button>
                 </div>
               </div>

@@ -184,7 +184,7 @@ export function ManageGroupDialog({ open, onOpenChange, chat }: ManageGroupDialo
 
   const handleSaveGroupDetails = async () => {
     if (!groupName.trim()) {
-      setError('Group name is required');
+      setError('El nombre del grupo es requerido');
       return;
     }
 
@@ -257,7 +257,7 @@ export function ManageGroupDialog({ open, onOpenChange, chat }: ManageGroupDialo
       setError('');
     } catch (error) {
       console.error('Error updating group:', error);
-      setError('Error updating group');
+      setError('Error al actualizar el grupo');
     } finally {
       setIsSaving(false);
     }
@@ -276,7 +276,7 @@ export function ManageGroupDialog({ open, onOpenChange, chat }: ManageGroupDialo
       const querySnapshot = await getDocs(q);
 
       if (querySnapshot.empty) {
-        setError('User not found with this PIN');
+        setError('Usuario no encontrado con este PIN');
         setIsSearching(false);
         return;
       }
@@ -286,7 +286,7 @@ export function ManageGroupDialog({ open, onOpenChange, chat }: ManageGroupDialo
 
       // Verificar que no esté ya en el grupo
       if (chat.participantIds.includes(user.id)) {
-        setError('User is already in this group');
+        setError('El usuario ya está en este grupo');
         setIsSearching(false);
         return;
       }
@@ -297,9 +297,26 @@ export function ManageGroupDialog({ open, onOpenChange, chat }: ManageGroupDialo
         chatRef,
         {
           participantIds: arrayUnion(user.id),
+          lastMessageAt: new Date().toISOString(),
         },
         { merge: true }
       );
+
+      // Crear mensaje del sistema
+      const messagesRef = collection(firestore, 'chats', chat.id, 'messages');
+      const now = new Date().toISOString();
+      
+      const joinMessage: Omit<Message, 'id'> = {
+        senderId: 'system',
+        content: `${user.name || user.email} se ha unido al grupo`,
+        type: 'system',
+        systemMessageType: 'member_joined',
+        readBy: [],
+        sentAt: now,
+        edited: false,
+      };
+      
+      await addDocumentNonBlocking(messagesRef, joinMessage);
 
       // Recargar participantes
       await loadParticipants();
@@ -307,7 +324,7 @@ export function ManageGroupDialog({ open, onOpenChange, chat }: ManageGroupDialo
       setError('');
     } catch (error) {
       console.error('Error adding member:', error);
-      setError('Error adding member');
+      setError('Error al agregar miembro');
     } finally {
       setIsSearching(false);
     }
@@ -318,13 +335,31 @@ export function ManageGroupDialog({ open, onOpenChange, chat }: ManageGroupDialo
 
     try {
       const chatRef = doc(firestore, 'chats', chat.id);
+      const now = new Date().toISOString();
+      
       await setDocumentNonBlocking(
         chatRef,
         {
           participantIds: arrayUnion(user.id),
+          lastMessageAt: now,
         },
         { merge: true }
       );
+
+      // Crear mensaje del sistema
+      const messagesRef = collection(firestore, 'chats', chat.id, 'messages');
+      
+      const joinMessage: Omit<Message, 'id'> = {
+        senderId: 'system',
+        content: `${user.name || user.email} se ha unido al grupo`,
+        type: 'system',
+        systemMessageType: 'member_joined',
+        readBy: [],
+        sentAt: now,
+        edited: false,
+      };
+      
+      await addDocumentNonBlocking(messagesRef, joinMessage);
 
       // Recargar participantes y contactos
       await loadParticipants();
@@ -332,7 +367,7 @@ export function ManageGroupDialog({ open, onOpenChange, chat }: ManageGroupDialo
       setError('');
     } catch (error) {
       console.error('Error adding member:', error);
-      setError('Error adding member');
+      setError('Error al agregar miembro');
     }
   };
 
@@ -403,7 +438,7 @@ export function ManageGroupDialog({ open, onOpenChange, chat }: ManageGroupDialo
 
     // No se puede eliminar al creador
     if (user.id === chat.createdBy) {
-      alert('Cannot remove the group creator');
+      alert('No se puede eliminar al creador del grupo');
       return;
     }
 
@@ -412,9 +447,10 @@ export function ManageGroupDialog({ open, onOpenChange, chat }: ManageGroupDialo
   };
 
   const confirmRemoveParticipant = async () => {
-    if (!firestore || !userToRemove) return;
+    if (!firestore || !userToRemove || !currentUser) return;
 
     const chatRef = doc(firestore, 'chats', chat.id);
+    const now = new Date().toISOString();
 
     try {
       await setDocumentNonBlocking(
@@ -422,9 +458,26 @@ export function ManageGroupDialog({ open, onOpenChange, chat }: ManageGroupDialo
         {
           participantIds: arrayRemove(userToRemove.id),
           adminIds: arrayRemove(userToRemove.id), // También remover de admins si lo era
+          lastMessageAt: now,
         },
         { merge: true }
       );
+
+      // Crear mensaje del sistema
+      const messagesRef = collection(firestore, 'chats', chat.id, 'messages');
+      const adminName = currentUser.displayName || currentUser.email || 'Un administrador';
+      
+      const removeMessage: Omit<Message, 'id'> = {
+        senderId: 'system',
+        content: `${adminName} ha eliminado a ${userToRemove.name} del grupo`,
+        type: 'system',
+        systemMessageType: 'member_left',
+        readBy: [],
+        sentAt: now,
+        edited: false,
+      };
+      
+      await addDocumentNonBlocking(messagesRef, removeMessage);
 
       setParticipants(participants.filter(p => p.id !== userToRemove.id));
       setUserToRemove(null);
@@ -463,15 +516,33 @@ export function ManageGroupDialog({ open, onOpenChange, chat }: ManageGroupDialo
       
       if (!request) return;
 
+      const now = new Date().toISOString();
+
       // Agregar al participante
       await setDocumentNonBlocking(
         chatRef,
         {
           participantIds: arrayUnion(userId),
-          joinRequests: joinRequests.filter(r => r.userId !== userId)
+          joinRequests: joinRequests.filter(r => r.userId !== userId),
+          lastMessageAt: now,
         },
         { merge: true }
       );
+
+      // Crear mensaje del sistema
+      const messagesRef = collection(firestore, 'chats', chat.id, 'messages');
+      
+      const joinMessage: Omit<Message, 'id'> = {
+        senderId: 'system',
+        content: `${request.userName} se ha unido al grupo`,
+        type: 'system',
+        systemMessageType: 'member_joined',
+        readBy: [],
+        sentAt: now,
+        edited: false,
+      };
+      
+      await addDocumentNonBlocking(messagesRef, joinMessage);
 
       // Actualizar estado local
       setJoinRequests(joinRequests.filter(r => r.userId !== userId));
@@ -531,7 +602,7 @@ export function ManageGroupDialog({ open, onOpenChange, chat }: ManageGroupDialo
       onOpenChange(false);
     } catch (error) {
       console.error('Error deleting group:', error);
-      alert('Error deleting group');
+      alert('Error al eliminar el grupo');
     }
   };
 
@@ -539,13 +610,32 @@ export function ManageGroupDialog({ open, onOpenChange, chat }: ManageGroupDialo
     if (!firestore || !currentUser) return;
 
     try {
-      const chatRef = doc(firestore, 'chats', chat.id);
-      
       // Si es el creador, no puede salirse
       if (currentUser.uid === chat.createdBy) {
-        alert('The group creator cannot leave the group. You must delete the group or transfer ownership first.');
+        alert('El creador del grupo no puede salirse. Debes eliminar el grupo o transferir la propiedad primero.');
         return;
       }
+
+      const chatRef = doc(firestore, 'chats', chat.id);
+      const messagesRef = collection(firestore, 'chats', chat.id, 'messages');
+      const now = new Date().toISOString();
+      const userName = currentUser.displayName || currentUser.email || 'Usuario';
+
+      // Guardar el nombre del grupo en localStorage para mostrarlo en la página de salida
+      localStorage.setItem(`left-group-${chat.id}`, chat.name || 'Grupo');
+
+      // Crear mensaje del sistema ANTES de salirse
+      const leaveMessage: Omit<Message, 'id'> = {
+        senderId: 'system',
+        content: `${userName} ha abandonado el grupo`,
+        type: 'system',
+        systemMessageType: 'member_left',
+        readBy: [],
+        sentAt: now,
+        edited: false,
+      };
+      
+      await addDocumentNonBlocking(messagesRef, leaveMessage);
 
       // Remover del grupo
       await setDocumentNonBlocking(
@@ -553,16 +643,24 @@ export function ManageGroupDialog({ open, onOpenChange, chat }: ManageGroupDialo
         {
           participantIds: arrayRemove(currentUser.uid),
           adminIds: arrayRemove(currentUser.uid), // También remover de admins si lo era
+          lastMessageAt: now,
         },
         { merge: true }
       );
 
-      // Redirigir al dashboard
-      router.push('/dashboard');
+      // Cerrar TODOS los diálogos inmediatamente
+      setShowLeaveGroupDialog(false);
       onOpenChange(false);
+      
+      // Redirigir a la página de "salida del grupo"
+      router.push(`/dashboard/left-group/${chat.id}`);
     } catch (error) {
       console.error('Error leaving group:', error);
-      alert('Error leaving group');
+      // Incluso si hay error, redirigir a la página de salida
+      localStorage.setItem(`left-group-${chat.id}`, chat.name || 'Grupo');
+      setShowLeaveGroupDialog(false);
+      onOpenChange(false);
+      router.push(`/dashboard/left-group/${chat.id}`);
     }
   };
 
@@ -588,9 +686,9 @@ export function ManageGroupDialog({ open, onOpenChange, chat }: ManageGroupDialo
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto w-[95vw] group-settings manage-group">
           <DialogHeader>
-            <DialogTitle className="text-base sm:text-lg group-header">Group Settings</DialogTitle>
+            <DialogTitle className="text-base sm:text-lg group-header">Configuración del Grupo</DialogTitle>
             <DialogDescription className="text-xs sm:text-sm group-info">
-              Edit group details, manage members and administrators
+              Edita los detalles del grupo, gestiona miembros y administradores
             </DialogDescription>
           </DialogHeader>
 
@@ -615,7 +713,7 @@ export function ManageGroupDialog({ open, onOpenChange, chat }: ManageGroupDialo
                 <>
                   <TabsTrigger value="privacy" className="text-xs sm:text-sm px-2 relative">
                     {groupVisibility === 'private' ? <Lock className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-2" /> : <Unlock className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-2" />}
-                    <span className="hidden sm:inline">Privacy</span>
+                    <span className="hidden sm:inline">Privacidad</span>
                     {joinRequests.length > 0 && (
                       <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] rounded-full h-4 w-4 flex items-center justify-center">
                         {joinRequests.length}
@@ -624,7 +722,7 @@ export function ManageGroupDialog({ open, onOpenChange, chat }: ManageGroupDialo
                   </TabsTrigger>
                   <TabsTrigger value="add" className="text-xs sm:text-sm px-2">
                     <Plus className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-2" />
-                    <span className="hidden sm:inline">Add</span>
+                    <span className="hidden sm:inline">Agregar</span>
                   </TabsTrigger>
                 </>
               )}
@@ -661,7 +759,7 @@ export function ManageGroupDialog({ open, onOpenChange, chat }: ManageGroupDialo
                     )}
                     <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground flex-wrap">
                       <Users className="h-3 w-3" />
-                      <span>{participants.length} members</span>
+                      <span>{participants.length} miembros</span>
                       {chat.visibility && (
                         <>
                           <span>•</span>
@@ -669,12 +767,12 @@ export function ManageGroupDialog({ open, onOpenChange, chat }: ManageGroupDialo
                             {chat.visibility === 'public' ? (
                               <span className="flex items-center gap-1">
                                 <Unlock className="h-3 w-3" />
-                                Public
+                                Público
                               </span>
                             ) : (
                               <span className="flex items-center gap-1">
                                 <Lock className="h-3 w-3" />
-                                Private
+                                Privado
                               </span>
                             )}
                           </Badge>
@@ -695,7 +793,7 @@ export function ManageGroupDialog({ open, onOpenChange, chat }: ManageGroupDialo
                     {/* Group PIN */}
                     {chat.groupPin && (
                       <div className="space-y-2">
-                        <Label className="text-xs text-muted-foreground">Group PIN</Label>
+                        <Label className="text-xs text-muted-foreground">PIN del Grupo</Label>
                         <div className="flex items-center gap-2">
                           <div className="flex-1 p-2 sm:p-3 rounded-lg bg-muted font-mono text-base sm:text-lg tracking-wider flex items-center justify-center min-w-0">
                             <Hash className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2 text-muted-foreground shrink-0" />
@@ -709,7 +807,7 @@ export function ManageGroupDialog({ open, onOpenChange, chat }: ManageGroupDialo
                           </Button>
                         </div>
                         <p className="text-xs text-muted-foreground">
-                          Share this PIN with others to let them join the group
+                          Comparte este PIN con otros para permitirles unirse al grupo
                         </p>
                       </div>
                     )}
@@ -717,7 +815,7 @@ export function ManageGroupDialog({ open, onOpenChange, chat }: ManageGroupDialo
                     {/* Invite Link */}
                     {chat.inviteCode && (
                       <div className="space-y-2">
-                        <Label className="text-xs text-muted-foreground">Invite Link</Label>
+                        <Label className="text-xs text-muted-foreground">Enlace de Invitación</Label>
                         <div className="flex items-center gap-2">
                           <div className="flex-1 p-2 sm:p-3 rounded-lg bg-muted text-xs sm:text-sm flex items-center min-w-0">
                             <Link2 className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2 text-muted-foreground shrink-0" />
@@ -733,7 +831,7 @@ export function ManageGroupDialog({ open, onOpenChange, chat }: ManageGroupDialo
                           </Button>
                         </div>
                         <p className="text-xs text-muted-foreground">
-                          Share this link to invite people directly to the group
+                          Comparte este enlace para invitar personas directamente al grupo
                         </p>
                       </div>
                     )}
@@ -744,7 +842,7 @@ export function ManageGroupDialog({ open, onOpenChange, chat }: ManageGroupDialo
                 {chat.createdAt && (
                   <div className="flex items-center gap-2 text-xs text-muted-foreground p-3 rounded-lg bg-muted/50">
                     <Clock className="h-3 w-3" />
-                    <span>Created {new Date(chat.createdAt).toLocaleDateString()}</span>
+                    <span>Creado el {new Date(chat.createdAt).toLocaleDateString()}</span>
                   </div>
                 )}
               </div>
@@ -819,10 +917,10 @@ export function ManageGroupDialog({ open, onOpenChange, chat }: ManageGroupDialo
 
                   {/* Group Name */}
                   <div>
-                    <Label htmlFor="group-name">Group Name *</Label>
+                    <Label htmlFor="group-name">Nombre del Grupo *</Label>
                     <Input
                       id="group-name"
-                      placeholder="Group name"
+                      placeholder="Nombre del grupo"
                       value={groupName}
                       onChange={(e) => setGroupName(e.target.value)}
                       maxLength={50}
@@ -831,10 +929,10 @@ export function ManageGroupDialog({ open, onOpenChange, chat }: ManageGroupDialo
 
                   {/* Group Description */}
                   <div>
-                    <Label htmlFor="group-description">Description</Label>
+                    <Label htmlFor="group-description">Descripción</Label>
                     <Textarea
                       id="group-description"
-                      placeholder="What's this group about?"
+                      placeholder="¿De qué trata este grupo?"
                       value={description}
                       onChange={(e) => setDescription(e.target.value)}
                       maxLength={200}
@@ -848,7 +946,7 @@ export function ManageGroupDialog({ open, onOpenChange, chat }: ManageGroupDialo
                     disabled={isSaving || !groupName.trim()}
                     className="w-full"
                   >
-                    {isSaving ? 'Saving...' : 'Save Changes'}
+                    {isSaving ? 'Guardando...' : 'Guardar Cambios'}
                   </Button>
 
                   {/* Delete Group Button - Solo para administradores */}
@@ -860,10 +958,10 @@ export function ManageGroupDialog({ open, onOpenChange, chat }: ManageGroupDialo
                         className="w-full bg-destructive text-destructive-foreground hover:bg-destructive/90"
                       >
                         <AlertTriangle className="h-4 w-4 mr-2" />
-                        Delete Group for Everyone
+                        Eliminar Grupo para Todos
                       </Button>
                       <p className="text-xs text-muted-foreground text-center mt-2">
-                        This action cannot be undone. The group will be deleted for all participants.
+                        Esta acción no se puede deshacer. El grupo será eliminado para todos los participantes.
                       </p>
                     </div>
                   )}
@@ -877,10 +975,10 @@ export function ManageGroupDialog({ open, onOpenChange, chat }: ManageGroupDialo
                         className="w-full bg-orange-500 text-white hover:bg-orange-600"
                       >
                         <LogOut className="h-4 w-4 mr-2" />
-                        Leave Group
+                        Salir del Grupo
                       </Button>
                       <p className="text-xs text-muted-foreground text-center mt-2">
-                        You will no longer be able to see messages or participate in this group.
+                        Ya no podrás ver los mensajes ni participar en este grupo.
                       </p>
                     </div>
                   )}
@@ -888,7 +986,7 @@ export function ManageGroupDialog({ open, onOpenChange, chat }: ManageGroupDialo
               ) : (
                 <div className="text-center py-8 text-muted-foreground">
                   <Edit className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                  <p>Only administrators can edit group details</p>
+                  <p>Solo los administradores pueden editar los detalles del grupo</p>
                   
                   {/* Leave Group Button para usuarios no administradores */}
                   {currentUser?.uid !== chat.createdBy && (
@@ -899,7 +997,7 @@ export function ManageGroupDialog({ open, onOpenChange, chat }: ManageGroupDialo
                         className="bg-orange-500 text-white hover:bg-orange-600"
                       >
                         <LogOut className="h-4 w-4 mr-2" />
-                        Leave Group
+                        Salir del Grupo
                       </Button>
                     </div>
                   )}
@@ -911,7 +1009,7 @@ export function ManageGroupDialog({ open, onOpenChange, chat }: ManageGroupDialo
             <TabsContent value="members" className="space-y-4 mt-4">
               {isLoading ? (
                 <div className="py-8 text-center text-muted-foreground text-sm">
-                  Loading participants...
+                  Cargando participantes...
                 </div>
               ) : (
                 <div className="space-y-2 max-h-[50vh] sm:max-h-[400px] overflow-y-auto">
@@ -945,7 +1043,7 @@ export function ManageGroupDialog({ open, onOpenChange, chat }: ManageGroupDialo
                             )}
                             {participant.id === currentUser?.uid && (
                               <Badge className="text-xs border px-1 py-0">
-                                You
+                                Tú
                               </Badge>
                             )}
                           </div>
@@ -982,7 +1080,7 @@ export function ManageGroupDialog({ open, onOpenChange, chat }: ManageGroupDialo
                             <button
                               type="button"
                               onClick={() => handleToggleAdmin(participant.id)}
-                              title={isAdmin ? 'Remove admin' : 'Make admin'}
+                              title={isAdmin ? 'Remover admin' : 'Hacer admin'}
                               className="p-2 hover:bg-accent rounded-md"
                             >
                               {isAdmin ? (
@@ -994,10 +1092,24 @@ export function ManageGroupDialog({ open, onOpenChange, chat }: ManageGroupDialo
                             <button
                               type="button"
                               onClick={() => handleRemoveParticipant(participant)}
-                              title="Remove from group"
+                              title="Eliminar del grupo"
                               className="p-2 hover:bg-accent rounded-md text-destructive"
                             >
                               <UserMinus className="h-4 w-4" />
+                            </button>
+                          </div>
+                        )}
+                        
+                        {/* Leave button for current user (if not creator) */}
+                        {participant.id === currentUser?.uid && !isCreator && (
+                          <div className="flex gap-1">
+                            <button
+                              type="button"
+                              onClick={() => setShowLeaveGroupDialog(true)}
+                              title="Salir del grupo"
+                              className="p-2 hover:bg-orange-500/10 rounded-md text-orange-600"
+                            >
+                              <LogOut className="h-4 w-4" />
                             </button>
                           </div>
                         )}
@@ -1014,9 +1126,9 @@ export function ManageGroupDialog({ open, onOpenChange, chat }: ManageGroupDialo
                 <>
                   {/* Visibility Settings */}
                   <div className="space-y-3">
-                    <h3 className="text-sm font-semibold">Group Visibility</h3>
+                    <h3 className="text-sm font-semibold">Visibilidad del Grupo</h3>
                     <p className="text-xs text-muted-foreground">
-                      Control who can join this group
+                      Controla quién puede unirse a este grupo
                     </p>
                     
                     <div className="grid gap-3">
@@ -1033,13 +1145,13 @@ export function ManageGroupDialog({ open, onOpenChange, chat }: ManageGroupDialo
                         <Unlock className={`h-5 w-5 mt-0.5 ${groupVisibility === 'public' ? 'text-primary' : 'text-muted-foreground'}`} />
                         <div className="flex-1 text-left">
                           <div className="flex items-center gap-2">
-                            <p className="font-medium">Public</p>
+                            <p className="font-medium">Público</p>
                             {groupVisibility === 'public' && (
                               <CheckCircle className="h-4 w-4 text-primary" />
                             )}
                           </div>
                           <p className="text-xs text-muted-foreground mt-1">
-                            Anyone with the PIN or invite link can join immediately
+                            Cualquiera con el PIN o enlace de invitación puede unirse inmediatamente
                           </p>
                         </div>
                       </button>
@@ -1057,13 +1169,13 @@ export function ManageGroupDialog({ open, onOpenChange, chat }: ManageGroupDialo
                         <Lock className={`h-5 w-5 mt-0.5 ${groupVisibility === 'private' ? 'text-primary' : 'text-muted-foreground'}`} />
                         <div className="flex-1 text-left">
                           <div className="flex items-center gap-2">
-                            <p className="font-medium">Private</p>
+                            <p className="font-medium">Privado</p>
                             {groupVisibility === 'private' && (
                               <CheckCircle className="h-4 w-4 text-primary" />
                             )}
                           </div>
                           <p className="text-xs text-muted-foreground mt-1">
-                            Requires approval from admins before joining
+                            Requiere aprobación de los administradores antes de unirse
                           </p>
                         </div>
                       </button>
@@ -1074,10 +1186,10 @@ export function ManageGroupDialog({ open, onOpenChange, chat }: ManageGroupDialo
                   {groupVisibility === 'private' && (
                     <div className="space-y-3 pt-4 border-t">
                       <div className="flex items-center justify-between">
-                        <h3 className="text-sm font-semibold">Join Requests</h3>
+                        <h3 className="text-sm font-semibold">Solicitudes de Unión</h3>
                         {joinRequests.length > 0 && (
                           <Badge className="bg-red-500 text-white">
-                            {joinRequests.length} pending
+                            {joinRequests.length} pendientes
                           </Badge>
                         )}
                       </div>
@@ -1085,7 +1197,7 @@ export function ManageGroupDialog({ open, onOpenChange, chat }: ManageGroupDialo
                       {joinRequests.length === 0 ? (
                         <div className="text-center py-8 text-sm text-muted-foreground">
                           <UserCheck className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                          <p>No pending join requests</p>
+                          <p>No hay solicitudes de unión pendientes</p>
                         </div>
                       ) : (
                         <div className="space-y-2 max-h-64 overflow-y-auto">
@@ -1100,7 +1212,7 @@ export function ManageGroupDialog({ open, onOpenChange, chat }: ManageGroupDialo
                                   {request.userEmail}
                                 </p>
                                 <p className="text-xs text-muted-foreground mt-1">
-                                  Requested {new Date(request.requestedAt).toLocaleDateString()}
+                                  Solicitado el {new Date(request.requestedAt).toLocaleDateString()}
                                 </p>
                               </div>
                               
@@ -1109,7 +1221,7 @@ export function ManageGroupDialog({ open, onOpenChange, chat }: ManageGroupDialo
                                   onClick={() => handleApproveRequest(request.userId)}
                                   disabled={processingRequest === request.userId}
                                   className="p-2 hover:bg-green-500/10 rounded-md text-green-600 disabled:opacity-50"
-                                  title="Approve"
+                                  title="Aprobar"
                                 >
                                   <CheckCircle className="h-5 w-5" />
                                 </button>
@@ -1117,7 +1229,7 @@ export function ManageGroupDialog({ open, onOpenChange, chat }: ManageGroupDialo
                                   onClick={() => handleRejectRequest(request.userId)}
                                   disabled={processingRequest === request.userId}
                                   className="p-2 hover:bg-red-500/10 rounded-md text-red-600 disabled:opacity-50"
-                                  title="Reject"
+                                  title="Rechazar"
                                 >
                                   <XCircle className="h-5 w-5" />
                                 </button>
@@ -1140,11 +1252,11 @@ export function ManageGroupDialog({ open, onOpenChange, chat }: ManageGroupDialo
                     <TabsList className="grid w-full grid-cols-2">
                       <TabsTrigger value="recent">
                         <Clock className="h-4 w-4 mr-2" />
-                        Recent
+                        Recientes
                       </TabsTrigger>
                       <TabsTrigger value="pin">
                         <Plus className="h-4 w-4 mr-2" />
-                        By PIN
+                        Por PIN
                       </TabsTrigger>
                     </TabsList>
 
@@ -1152,11 +1264,11 @@ export function ManageGroupDialog({ open, onOpenChange, chat }: ManageGroupDialo
                     <TabsContent value="recent" className="space-y-2 mt-4">
                       {isLoadingContacts ? (
                         <div className="text-sm text-muted-foreground text-center py-8">
-                          Loading recent contacts...
+                          Cargando contactos recientes...
                         </div>
                       ) : recentContacts.length === 0 ? (
                         <div className="text-sm text-muted-foreground text-center py-8">
-                          No recent contacts available. Use the PIN tab to add members.
+                          No hay contactos recientes disponibles. Usa la pestaña PIN para agregar miembros.
                         </div>
                       ) : (
                         <div className="max-h-60 overflow-y-auto space-y-2">
@@ -1193,7 +1305,7 @@ export function ManageGroupDialog({ open, onOpenChange, chat }: ManageGroupDialo
                     <TabsContent value="pin" className="mt-4">
                       <div className="flex gap-2">
                         <Input
-                          placeholder="Enter user PIN"
+                          placeholder="Ingresa el PIN del usuario"
                           value={pinInput}
                           onChange={(e) => setPinInput(e.target.value)}
                           onKeyDown={(e) => {
@@ -1217,7 +1329,7 @@ export function ManageGroupDialog({ open, onOpenChange, chat }: ManageGroupDialo
               ) : (
                 <div className="text-center py-8 text-muted-foreground">
                   <Plus className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                  <p>Only administrators can add new members</p>
+                  <p>Solo los administradores pueden agregar nuevos miembros</p>
                 </div>
               )}
             </TabsContent>
@@ -1235,7 +1347,7 @@ export function ManageGroupDialog({ open, onOpenChange, chat }: ManageGroupDialo
               className="inline-flex items-center justify-center rounded-md text-sm font-medium h-10 px-4 hover:bg-accent"
               onClick={() => onOpenChange(false)}
             >
-              Close
+              Cerrar
             </button>
           </div>
         </DialogContent>
@@ -1245,16 +1357,16 @@ export function ManageGroupDialog({ open, onOpenChange, chat }: ManageGroupDialo
       <AlertDialog open={!!userToRemove} onOpenChange={() => setUserToRemove(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remove participant?</AlertDialogTitle>
+            <AlertDialogTitle>¿Eliminar participante?</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to remove <strong>{userToRemove?.name}</strong> from this group?
-              They will no longer have access to the chat.
+              ¿Estás seguro de que quieres eliminar a <strong>{userToRemove?.name}</strong> de este grupo?
+              Ya no tendrán acceso al chat.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={confirmRemoveParticipant}>
-              Remove
+              Eliminar
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -1264,19 +1376,19 @@ export function ManageGroupDialog({ open, onOpenChange, chat }: ManageGroupDialo
       <AlertDialog open={showDeleteGroupDialog} onOpenChange={setShowDeleteGroupDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete group permanently?</AlertDialogTitle>
+            <AlertDialogTitle>¿Eliminar grupo permanentemente?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will delete the group and all its messages for <strong>ALL participants</strong>.
-              This action cannot be undone.
+              Esto eliminará el grupo y todos sus mensajes para <strong>TODOS los participantes</strong>.
+              Esta acción no se puede deshacer.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteGroup}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              Delete Group
+              Eliminar Grupo
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -1286,19 +1398,19 @@ export function ManageGroupDialog({ open, onOpenChange, chat }: ManageGroupDialo
       <AlertDialog open={showLeaveGroupDialog} onOpenChange={setShowLeaveGroupDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Leave this group?</AlertDialogTitle>
+            <AlertDialogTitle>¿Salir de este grupo?</AlertDialogTitle>
             <AlertDialogDescription>
-              You will no longer be able to see messages or participate in <strong>{chat.name}</strong>.
-              You can rejoin later if the group is public or if an admin invites you.
+              Ya no podrás ver los mensajes ni participar en <strong>{chat.name}</strong>.
+              Puedes volver a unirte más tarde si el grupo es público o si un administrador te invita.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleLeaveGroup}
               className="bg-orange-500 text-white hover:bg-orange-600"
             >
-              Leave Group
+              Salir del Grupo
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

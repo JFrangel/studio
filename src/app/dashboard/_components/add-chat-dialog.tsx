@@ -35,7 +35,7 @@ export function AddChatDialog({
 
   const handleCreateChat = async () => {
     if (!firestore || !currentUser || !pin) {
-      setError('User PIN is required.');
+      setError('El PIN del usuario es requerido.');
       return;
     }
 
@@ -49,7 +49,7 @@ export function AddChatDialog({
       const querySnapshot = await getDocs(q);
 
       if (querySnapshot.empty) {
-        throw new Error('User with that PIN not found.');
+        throw new Error('Usuario con ese PIN no encontrado.');
       }
 
       const otherUserDoc = querySnapshot.docs[0];
@@ -109,7 +109,7 @@ export function AddChatDialog({
       });
       
       if (chatAlreadyExists) {
-        throw new Error('A chat with this user already exists.');
+        throw new Error('Ya existe un chat con este usuario.');
       }
 
 
@@ -122,19 +122,19 @@ export function AddChatDialog({
       });
       
       toast({
-        title: "Chat created!",
-        description: `You can now chat with ${otherUser.name}.`,
+        title: "Chat creado!",
+        description: `Ahora puedes chatear con ${otherUser.name}.`,
       });
       onOpenChange(false);
       setPin('');
       router.push(`/dashboard/chat/${newChatRef.id}`);
 
     } catch (e: any) {
-      setError(e.message || 'Failed to create chat.');
+      setError(e.message || 'Error al crear el chat.');
       toast({
         variant: "destructive",
-        title: "Uh oh! Something went wrong.",
-        description: e.message || 'Could not create the chat.',
+        title: "¡Oh no! Algo salió mal.",
+        description: e.message || 'No se pudo crear el chat.',
       });
     } finally {
       setIsLoading(false);
@@ -145,15 +145,15 @@ export function AddChatDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Start a New Chat</DialogTitle>
+          <DialogTitle>Iniciar un Nuevo Chat</DialogTitle>
           <DialogDescription>
-            Enter the 6-digit PIN of the user you want to chat with.
+            Ingresa el PIN de 6 dígitos del usuario con el que quieres chatear.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="pin" className="text-right">
-              User PIN
+              PIN Usuario
             </Label>
             <Input
               id="pin"
@@ -167,7 +167,7 @@ export function AddChatDialog({
         </div>
         <DialogFooter>
           <Button onClick={handleCreateChat} disabled={isLoading}>
-            {isLoading ? 'Creating...' : 'Create Chat'}
+            {isLoading ? 'Creando...' : 'Crear Chat'}
           </Button>
         </DialogFooter>
       </DialogContent>

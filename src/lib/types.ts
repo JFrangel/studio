@@ -61,5 +61,5 @@ export type Message = {
   fileUrl?: string; // URL del archivo en Firebase Storage
   fileName?: string; // Nombre original del archivo
   fileSize?: number; // Tamaño del archivo en bytes
-  systemMessageType?: 'group_created' | 'description_updated' | 'icon_updated' | 'user_joined' | 'user_left'; // Tipo de mensaje del sistema
+  systemMessageType?: 'group_created' | 'description_updated' | 'icon_updated' | 'user_joined' | 'user_left' | 'member_joined' | 'member_left'; // Tipo de mensaje del sistema
 };

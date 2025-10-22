@@ -77,7 +77,7 @@ export function ChatHeader({ chat, onSearchClick }: { chat: Chat & {id: string},
     if (chat.type === 'private' && chat.participantIds.length === 1 && chat.participantIds[0] === currentUser?.uid) {
       return {
         name: currentUser?.displayName || currentUser?.email?.split('@')[0] || 'My Notes',
-        description: 'Your personal space for notes',
+        description: 'Tu espacio personal para notas',
         userForAvatar: null,
         isPersonal: true,
         isGroup: false,
@@ -90,7 +90,7 @@ export function ChatHeader({ chat, onSearchClick }: { chat: Chat & {id: string},
       const otherUser = participantUsers?.[0];
       return {
         name: areParticipantsLoading ? 'Loading...' : otherUser?.name || 'Private Chat',
-        description: areParticipantsLoading ? '...' : otherUser?.status === 'active' ? 'Online' : 'Offline',
+        description: areParticipantsLoading ? '...' : otherUser?.status === 'active' ? 'En línea' : 'Desconectado',
         userForAvatar: otherUser,
         isPersonal: false,
         isGroup: false,

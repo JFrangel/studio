@@ -73,7 +73,7 @@ export default function SettingsPage() {
       status: status,
       searchable: searchable,
     }, { merge: true });
-    toast({ title: "Profile saved!", description: "Your changes have been updated." });
+    toast({ title: "Perfil guardado!", description: "Tus cambios han sido actualizados." });
   };
   
   const handleAvatarSelect = (seed: string, style: AvatarStyle) => {
@@ -103,7 +103,7 @@ export default function SettingsPage() {
   const handleCopyPin = () => {
     if(userProfile?.pin) {
       navigator.clipboard.writeText(userProfile.pin);
-      toast({ title: "PIN Copied!", description: "You can now share your PIN with others." });
+      toast({ title: "PIN Copiado!", description: "Ahora puedes compartir tu PIN con otros." });
     }
   }
 
