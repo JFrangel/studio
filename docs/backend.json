@@ -1,0 +1,295 @@
+{
+  "entities": {
+    "User": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User",
+      "type": "object",
+      "description": "Represents a user within the ChatStatus application.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the User entity."
+        },
+        "name": {
+          "type": "string",
+          "description": "The user's full name."
+        },
+        "email": {
+          "type": "string",
+          "description": "The user's email address.",
+          "format": "email"
+        },
+        "pin": {
+          "type": "string",
+          "description": "A unique, short identifier for the user to be added by others."
+        },
+        "role": {
+          "type": "string",
+          "description": "The user's role (e.g., admin, user, moderator)."
+        },
+        "photo": {
+          "type": "string",
+          "description": "URL of the user's profile picture.",
+          "format": "uri"
+        },
+        "lastLogin": {
+          "type": "string",
+          "description": "Date and time of the user's last login.",
+          "format": "date-time"
+        },
+        "status": {
+          "type": "string",
+          "description": "The user's status (e.g., active, inactive)."
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "email",
+        "pin",
+        "role",
+        "status"
+      ]
+    },
+    "Chat": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Chat",
+      "type": "object",
+      "description": "Represents a chat room or direct message conversation.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Chat entity."
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of the chat room (if it's a group chat)."
+        },
+        "type": {
+          "type": "string",
+          "description": "The type of chat (e.g., 'private', 'group')."
+        },
+        "participantIds": {
+          "type": "array",
+          "description": "References to Users. (Relationship: User N:N Chat) Array of user IDs participating in the chat.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Date and time when the chat was created.",
+          "format": "date-time"
+        },
+        "lastMessage": {
+          "type": "string",
+          "description": "The content of the last message sent in the chat."
+        },
+        "createdBy": {
+          "type": "string",
+          "description": "Reference to User. (Relationship: User 1:N Chat) ID of the user who created the chat."
+        }
+      },
+      "required": [
+        "id",
+        "type",
+        "participantIds",
+        "createdAt",
+        "createdBy"
+      ]
+    },
+    "Message": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Message",
+      "type": "object",
+      "description": "Represents a single message within a chat.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Message entity."
+        },
+        "senderId": {
+          "type": "string",
+          "description": "Reference to User. (Relationship: User 1:N Message) ID of the user who sent the message."
+        },
+        "content": {
+          "type": "string",
+          "description": "The text content of the message."
+        },
+        "type": {
+          "type": "string",
+          "description": "The type of the message (e.g., 'text', 'image', 'file')."
+        },
+        "readBy": {
+          "type": "array",
+          "description": "References to Users. (Relationship: User N:N Message) Array of user IDs who have read the message.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "sentAt": {
+          "type": "string",
+          "description": "Date and time when the message was sent.",
+          "format": "date-time"
+        },
+        "edited": {
+          "type": "boolean",
+          "description": "Indicates whether the message has been edited."
+        },
+        "chatId": {
+          "type": "string",
+          "description": "Reference to Chat. (Relationship: Chat 1:N Message) ID of the chat this message belongs to."
+        }
+      },
+      "required": [
+        "id",
+        "senderId",
+        "content",
+        "type",
+        "sentAt",
+        "edited",
+        "chatId"
+      ]
+    },
+    "Notification": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Notification",
+      "type": "object",
+      "description": "Represents a notification for a user.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Notification entity."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to User. (Relationship: User 1:N Notification) ID of the user the notification is for."
+        },
+        "message": {
+          "type": "string",
+          "description": "The content of the notification."
+        },
+        "type": {
+          "type": "string",
+          "description": "The type of notification (e.g., 'new_message', 'chat_invite')."
+        },
+        "read": {
+          "type": "boolean",
+          "description": "Indicates whether the notification has been read."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Date and time when the notification was created.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "message",
+        "type",
+        "read",
+        "createdAt"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "google.com"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "User",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Stores user profiles.  Only the user or an admin can access this data.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/chats/{chatId}",
+        "definition": {
+          "entityName": "Chat",
+          "schema": {
+            "$ref": "#/backend/entities/Chat"
+          },
+          "description": "Stores chat metadata. Includes `participantIds` array for authorization.",
+          "params": [
+            {
+              "name": "chatId",
+              "description": "The unique identifier of the chat."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/chats/{chatId}/messages/{messageId}",
+        "definition": {
+          "entityName": "Message",
+          "schema": {
+            "$ref": "#/backend/entities/Message"
+          },
+          "description": "Stores messages within a chat. Path-based hierarchy maintains the Chat 1:N Message relationship.",
+          "params": [
+            {
+              "name": "chatId",
+              "description": "The unique identifier of the chat."
+            },
+            {
+              "name": "messageId",
+              "description": "The unique identifier of the message."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/notifications/{notificationId}",
+        "definition": {
+          "entityName": "Notification",
+          "schema": {
+            "$ref": "#/backend/entities/Notification"
+          },
+          "description": "Stores notifications for a user. Path-based ownership ensures only the user can access their notifications.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user."
+            },
+            {
+              "name": "notificationId",
+              "description": "The unique identifier of the notification."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/roles_admin/{userId}",
+        "definition": {
+          "entityName": "role",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Grants admin privileges to the user if a document exists with their ID.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore data structure is designed to support the ChatStatus application's features, focusing on secure, scalable, and maintainable data access. The structure incorporates denormalization to ensure Authorization Independence, which is critical for security rules and atomic operations. Segregation is applied to maintain a homogeneous security posture across collections, and Access Modeling standardizes authorization patterns using path-based ownership and membership maps. These strategies ensures clarity and predictability within the database, making security rules robust and debuggable.\n\n*   **/users/{userId}**: Stores user profiles. Path-based ownership ensures only the user or an admin can access their data. Supports QAPs because listing users is restricted to admins only, while users can only access their own profile.\n*   **/chats/{chatId}**: Stores chat metadata.  Includes a `participantIds` array representing the members of the chat. This supports QAPs by ensuring only participants can list or access chat details.\n*   **/chats/{chatId}/messages/{messageId}**: Stores messages within a chat.  Path-based hierarchy maintains the Chat 1:N Message relationship. Only chat participants can list or access messages.\n*   **/users/{userId}/notifications/{notificationId}**: Stores notifications for a user. Path-based ownership ensures only the user can access their notifications. Supports QAPs because listing notifications is restricted to the user themselves.\n*   **/roles_admin/{userId}**: Existence of a document in this collection grants admin privileges to the corresponding user. Supports QAPs by restricting access to this collection to authorized admin users."
+  }
+}

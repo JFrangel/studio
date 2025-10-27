@@ -1,0 +1,159 @@
+'use client';
+import Link from 'next/link';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { Button } from '@/components/ui/button';
+import { Settings, LogOut, Users, User as UserIcon } from 'lucide-react';
+import { UserAvatar } from '@/components/user-avatar';
+import { useUser, useAuth, useDoc, useMemoFirebase, useFirestore } from '@/firebase';
+import { signOut } from 'firebase/auth';
+import { useRouter } from 'next/navigation';
+import { doc } from 'firebase/firestore';
+import type { User } from '@/lib/types';
+import { Skeleton } from '@/components/ui/skeleton';
+import { useSidebar } from '@/components/ui/sidebar';
+import { useState } from 'react';
+import { ThemeToggle } from '@/components/theme-toggle';
+
+export function UserMenu() {
+  const { user: authUser, isUserLoading } = useUser();
+  const auth = useAuth();
+  const firestore = useFirestore();
+  const router = useRouter();
+  const { setOpenMobile, isMobile } = useSidebar();
+  const [showLogoutDialog, setShowLogoutDialog] = useState(false);
+
+  const userDocRef = useMemoFirebase(() => {
+    if (!firestore || !authUser) return null;
+    return doc(firestore, 'users', authUser.uid);
+  }, [firestore, authUser]);
+
+  const { data: userProfile, isLoading: isProfileLoading } = useDoc<User>(userDocRef);
+
+  const handleLogout = async () => {
+    if (!auth) return;
+    await signOut(auth);
+    router.push('/login');
+  };
+
+  const handleNavigate = () => {
+    // En móvil, cerramos el sidebar cuando navegamos
+    if (isMobile) {
+      setOpenMobile(false);
+    }
+  };
+  
+  const isLoading = isUserLoading || isProfileLoading;
+  
+  // Verificar si el usuario es admin
+  const isAdmin = userProfile?.role === 'admin';
+
+  if (isLoading || !userProfile) {
+    return (
+      <div className="flex items-center gap-2 p-4">
+        <Skeleton className="h-10 w-10 rounded-full" />
+        <div className="flex flex-col gap-y-2">
+          <Skeleton className="h-4 w-24" />
+          <Skeleton className="h-3 w-32" />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="ghost"
+            className="h-auto w-full justify-start text-left"
+          >
+            <div className="flex items-center gap-2">
+              <UserAvatar user={userProfile} className="h-8 w-8" />
+              <div className="flex flex-col">
+                <span className="text-sm font-medium">{userProfile.name}</span>
+                <span className="text-xs text-muted-foreground">{userProfile.email}</span>
+              </div>
+            </div>
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent className="w-56" align="end" forceMount>
+          <DropdownMenuLabel className="font-normal">
+            <div className="flex flex-col space-y-1">
+              <p className="text-sm font-medium leading-none">{userProfile.name}</p>
+              <p className="text-xs leading-none text-muted-foreground">
+                {userProfile.email}
+              </p>
+            </div>
+          </DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem asChild>
+            <Link href="/dashboard/settings" onClick={handleNavigate}>
+              <UserIcon className="mr-2 h-4 w-4" />
+              <span>Perfil</span>
+            </Link>
+          </DropdownMenuItem>
+          {isAdmin && (
+            <DropdownMenuItem asChild>
+              <Link href="/dashboard/users" onClick={handleNavigate}>
+                <Users className="mr-2 h-4 w-4" />
+                <span>Users</span>
+              </Link>
+            </DropdownMenuItem>
+          )}
+          <DropdownMenuItem asChild>
+            <Link href="/dashboard/settings" onClick={handleNavigate}>
+              <Settings className="mr-2 h-4 w-4" />
+              <span>Settings</span>
+            </Link>
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <div className="px-2 py-1.5">
+            <ThemeToggle />
+          </div>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={() => setShowLogoutDialog(true)}>
+              <LogOut className="mr-2 h-4 w-4" />
+              <span>Log out</span>
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <AlertDialog open={showLogoutDialog} onOpenChange={setShowLogoutDialog}>
+        <AlertDialogContent className="w-[95vw] max-w-md sm:w-full">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-base sm:text-lg">¿Cerrar sesión?</AlertDialogTitle>
+            <AlertDialogDescription className="text-sm">
+              ¿Estás seguro que deseas cerrar sesión? Tendrás que iniciar sesión nuevamente para acceder.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+            <AlertDialogCancel className="w-full sm:w-auto m-0">Cancelar</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleLogout}
+              className="w-full sm:w-auto bg-destructive hover:bg-destructive/90 m-0"
+            >
+              Cerrar sesión
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  );
+}

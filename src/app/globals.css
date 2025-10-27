@@ -1,0 +1,369 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 206 25% 95%;
+    --foreground: 215 28% 17%;
+    --card: 0 0% 100%;
+    --card-foreground: 215 28% 17%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 215 28% 17%;
+    --primary: 207 85% 68%;
+    --primary-foreground: 215 28% 17%;
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 215 28% 17%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215 28% 44%;
+    --accent: 33 100% 62%;
+    --accent-foreground: 26 83% 12%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 207 85% 68%;
+    --chart-1: 12 76% 61%;
+    --chart-2: 173 58% 39%;
+    --chart-3: 197 37% 24%;
+    --chart-4: 43 74% 66%;
+    --chart-5: 27 87% 67%;
+    --radius: 0.5rem;
+
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 215 28% 17%;
+    --sidebar-primary: 207 85% 68%;
+    --sidebar-primary-foreground: 215 28% 17%;
+    --sidebar-accent: 206 25% 92%;
+    --sidebar-accent-foreground: 215 28% 17%;
+    --sidebar-border: 214.3 31.8% 91.4%;
+    --sidebar-ring: 207 85% 68%;
+  }
+
+  .dark {
+    --background: 222 47% 11%;
+    --foreground: 210 40% 98%;
+    --card: 222 47% 11%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222 47% 11%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 207 85% 68%;
+    --primary-foreground: 215 28% 17%;
+    --secondary: 217 33% 17%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217 33% 17%;
+    --muted-foreground: 215 21% 54%;
+    --accent: 33 100% 62%;
+    --accent-foreground: 26 83% 12%;
+    --destructive: 0 63% 31%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217 33% 17%;
+    --input: 217 33% 17%;
+    --ring: 207 85% 68%;
+    --chart-1: 220 70% 50%;
+    --chart-2: 160 60% 45%;
+    --chart-3: 30 80% 55%;
+    --chart-4: 280 65% 60%;
+    --chart-5: 340 75% 55%;
+
+    --sidebar-background: 222 47% 11%;
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-primary: 207 85% 68%;
+    --sidebar-primary-foreground: 215 28% 17%;
+    --sidebar-accent: 217 33% 17%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 217 33% 17%;
+    --sidebar-ring: 207 85% 68%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+@layer utilities {
+  /* Animación de borde para creadores - solo borde sin difuminado */
+  @keyframes electric-pulse {
+    0%, 100% {
+      border-color: rgba(245, 158, 11, 0.6);
+    }
+    50% {
+      border-color: rgba(245, 158, 11, 1);
+    }
+  }
+
+  /* Animación de borde para admins de plataforma - solo borde sin difuminado */
+  @keyframes electric-pulse-purple {
+    0%, 100% {
+      border-color: rgba(168, 85, 247, 0.6);
+    }
+    50% {
+      border-color: rgba(168, 85, 247, 1);
+    }
+  }
+
+  .electric-border-creator {
+    animation: electric-pulse 2s ease-in-out infinite;
+  }
+
+  .electric-border-admin {
+    animation: electric-pulse-purple 2s ease-in-out infinite;
+  }
+}
+
+/* Modo monocromático */
+.monochrome {
+  --background: 0 0% 0%;
+  --foreground: 0 0% 100%;
+  --card: 0 0% 3%;
+  --card-foreground: 0 0% 100%;
+  --popover: 0 0% 3%;
+  --popover-foreground: 0 0% 100%;
+  --primary: 0 0% 80%;
+  --primary-foreground: 0 0% 0%;
+  --secondary: 0 0% 8%;
+  --secondary-foreground: 0 0% 100%;
+  --muted: 0 0% 8%;
+  --muted-foreground: 0 0% 95%;
+  --accent: 0 0% 12%;
+  --accent-foreground: 0 0% 100%;
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 0 0% 15%;
+  --input: 0 0% 15%;
+  --ring: 0 0% 100%;
+
+  --sidebar-background: 0 0% 0%;
+  --sidebar-foreground: 0 0% 100%;
+  --sidebar-primary: 0 0% 80%;
+  --sidebar-primary-foreground: 0 0% 0%;
+  --sidebar-accent: 0 0% 6%;
+  --sidebar-accent-foreground: 0 0% 100%;
+  --sidebar-border: 0 0% 15%;
+  --sidebar-ring: 0 0% 100%;
+
+  /* Forzar colores específicos para elementos que pueden no usar las variables CSS */
+  color: white !important;
+}
+
+.monochrome * {
+  color: inherit;
+}
+
+.monochrome h1,
+.monochrome h2,
+.monochrome h3,
+.monochrome h4,
+.monochrome h5,
+.monochrome h6,
+.monochrome p,
+.monochrome span,
+.monochrome div,
+.monochrome label {
+  color: white !important;
+}
+
+.monochrome .text-muted-foreground {
+  color: rgba(255, 255, 255, 0.7) !important;
+}
+
+.monochrome .text-foreground {
+  color: white !important;
+}
+
+/* Botones específicos en modo monocromático */
+.monochrome button[type="submit"] {
+  background-color: #CCCCCC !important;
+  color: black !important;
+  border: 1px solid #999999 !important;
+}
+
+.monochrome button[type="submit"]:hover {
+  background-color: #AAAAAA !important;
+}
+
+.monochrome button[type="submit"]:disabled {
+  background-color: #666666 !important;
+  color: #999999 !important;
+}
+
+/* Botones de acción generales */
+.monochrome button:not([type="submit"]),
+.monochrome .button {
+  border: none !important;
+  color: white !important;
+}
+
+.monochrome button:not([type="submit"]):hover,
+.monochrome .button:hover {
+  background-color: rgba(255, 255, 255, 0.2) !important;
+  border: none !important;
+}
+
+/* Botones con variantes específicas */
+.monochrome [class*="bg-primary"] {
+  background-color: #CCCCCC !important;
+  color: black !important;
+}
+
+.monochrome [class*="bg-primary"]:hover {
+  background-color: #AAAAAA !important;
+}
+
+/* Botones outline - solo para botones específicos como copiar */
+.monochrome [class*="variant-outline"]:not(.chat-avatar):not(.chat-button),
+.monochrome button.border:not(.chat-avatar):not(.chat-button) {
+  background-color: transparent !important;
+  border: 1px solid rgba(255, 255, 255, 0.5) !important;
+  color: white !important;
+}
+
+.monochrome [class*="variant-outline"]:not(.chat-avatar):not(.chat-button):hover,
+.monochrome button.border:not(.chat-avatar):not(.chat-button):hover {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Quitar bordes de avatares y botones de chat */
+.monochrome .chat-avatar,
+.monochrome .chat-button,
+.monochrome [data-chat-element],
+.monochrome .sidebar-menu-button {
+  border: none !important;
+}
+
+/* Iconos */
+.monochrome svg {
+  color: white !important;
+}
+
+/* Inputs */
+.monochrome input,
+.monochrome textarea {
+  background-color: rgba(255, 255, 255, 0.05) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  color: white !important;
+}
+
+.monochrome input::placeholder,
+.monochrome textarea::placeholder {
+  color: rgba(255, 255, 255, 0.5) !important;
+}
+
+/* Cards y contenedores */
+.monochrome [class*="bg-card"],
+.monochrome [class*="bg-muted"] {
+  background-color: rgba(255, 255, 255, 0.05) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Texto en cards */
+.monochrome .card-title,
+.monochrome .card-description,
+.monochrome .card-content * {
+  color: white !important;
+}
+
+/* Headers de chat y grupos */
+.monochrome .chat-header,
+.monochrome .chat-header *,
+.monochrome .group-header,
+.monochrome .group-header *,
+.monochrome .dialog-title,
+.monochrome .dialog-description,
+.monochrome .dialog-content *,
+.monochrome .group-settings *,
+.monochrome .manage-group *,
+.monochrome .group-info * {
+  color: white !important;
+}
+
+/* Elementos específicos de diálogos y configuraciones */
+.monochrome [role="dialog"] *,
+.monochrome .dialog-overlay *,
+.monochrome .dialog-content *,
+.monochrome .popover-content * {
+  color: white !important;
+}
+
+/* Mantener colores reales de las insignias en modo monocromático */
+.monochrome .text-purple-500 {
+  color: rgb(168 85 247) !important; /* purple-500 */
+}
+
+.monochrome .text-amber-500 {
+  color: rgb(245 158 11) !important; /* amber-500 */
+}
+
+.monochrome .text-blue-500 {
+  color: rgb(59 130 246) !important; /* blue-500 */
+}
+
+.monochrome .bg-purple-500\/10 {
+  background-color: rgba(168, 85, 247, 0.1) !important; /* purple-500/10 */
+}
+
+.monochrome .bg-amber-500\/10 {
+  background-color: rgba(245, 158, 11, 0.1) !important; /* amber-500/10 */
+}
+
+.monochrome .bg-blue-500\/10 {
+  background-color: rgba(59, 130, 246, 0.1) !important; /* blue-500/10 */
+}
+
+/* Mantener color del badge de grupo */
+.monochrome .text-primary {
+  color: hsl(var(--primary)) !important;
+}
+
+.monochrome .bg-primary\/10 {
+  background-color: hsla(var(--primary), 0.1) !important;
+}
+
+/* Forzar colores en todas las ubicaciones de badges */
+.monochrome [data-role-badge] .text-purple-500,
+.monochrome [data-role-badge] .text-amber-500,
+.monochrome [data-role-badge] .text-blue-500,
+.monochrome [data-group-badge] .text-primary {
+  color: inherit !important;
+}
+
+/* Asegurar que los badges en listas de usuarios mantengan colores */
+.monochrome .user-list .text-purple-500,
+.monochrome .user-list .text-amber-500,
+.monochrome .user-list .text-blue-500 {
+  color: rgb(168 85 247) !important;
+  color: rgb(245 158 11) !important;
+  color: rgb(59 130 246) !important;
+}
+
+/* Asegurar que los badges en perfiles mantengan colores */
+.monochrome .profile-page .text-purple-500,
+.monochrome .profile-page .text-amber-500,
+.monochrome .profile-page .text-blue-500 {
+  color: rgb(168 85 247) !important;
+  color: rgb(245 158 11) !important;
+  color: rgb(59 130 246) !important;
+}
+
+/* Asegurar que los badges en el header de chat mantengan colores */
+.monochrome .chat-header .text-purple-500,
+.monochrome .chat-header .text-amber-500,
+.monochrome .chat-header .text-blue-500 {
+  color: rgb(168 85 247) !important;
+  color: rgb(245 158 11) !important;
+  color: rgb(59 130 246) !important;
+}
+
+/* Asegurar que los badges en gestión de grupos mantengan colores */
+.monochrome .manage-group .text-purple-500,
+.monochrome .manage-group .text-amber-500,
+.monochrome .manage-group .text-blue-500 {
+  color: rgb(168 85 247) !important;
+  color: rgb(245 158 11) !important;
+  color: rgb(59 130 246) !important;
+}
